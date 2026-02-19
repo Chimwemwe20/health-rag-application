@@ -1,0 +1,292 @@
+rules_version = '2';
+
+// Zambia Health RAG Platform — Firestore Security Rules
+//
+// Architecture:
+//   - All writes to sensitive collections go through Firebase Functions (Admin SDK),
+//     which bypasses these rules. Rules are a defence-in-depth layer for direct reads.
+//   - App Check enforcement is configured at the project level in Firebase Console.
+//   - All user-scoped data is filtered by request.auth.uid per the technical design doc.
+//
+// Collections:
+//   users/               — User profiles (owner read/write)
+//   conversations/       — Chat sessions (owner read; backend writes via Admin SDK)
+//   conversations/*/messages/ — Chat messages (owner read; immutable; backend writes)
+//   health_chunks/       — RAG corpus with embeddings (no client access; server IAM)
+//   query_logs/          — Query audit trail (no client access)
+//   abstention_logs/     — Abstention audit trail (no client access)
+//   rate_limits/         — Per-user rate limit counters (no client access)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // Helper Functions
+    // =========================================================
+
+    // User must be authenticated (not anonymous)
+    function isAuthenticated() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // Caller owns this document (by uid field)
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Validates a string field: non-empty, within maxLen chars
+    function isValidString(value, maxLen) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= maxLen;
+    }
+
+    // Field set equals exactly the allowed set (no extra fields)
+    function hasOnlyFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    // Existing resource is not soft-deleted
+    function notDeleted() {
+      return resource.data.deletedAt == null;
+    }
+
+    // =========================================================
+    // users/{userId}
+    // =========================================================
+    // Schema:
+    //   uid:        string  (== userId, immutable)
+    //   email:      string  (immutable after creation)
+    //   name:       string? (optional, mutable)
+    //   createdAt:  timestamp (immutable)
+    //   updatedAt:  timestamp (mutable on update)
+    // =========================================================
+    match /users/{userId} {
+
+      allow get: if isOwner(userId);
+
+      // Disallow listing the entire users collection from the client
+      allow list: if false;
+
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && isValidString(request.resource.data.email, 256)
+        && (
+             !('name' in request.resource.data)
+             || isValidString(request.resource.data.name, 128)
+           )
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        // Prevent accidental extra fields
+        && hasOnlyFields(['uid', 'email', 'name', 'createdAt', 'updatedAt']);
+
+      allow update: if isOwner(userId)
+        // Immutable fields must not change
+        && request.resource.data.uid       == resource.data.uid
+        && request.resource.data.email     == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        // Only name and updatedAt are mutable
+        && (
+             !('name' in request.resource.data)
+             || isValidString(request.resource.data.name, 128)
+           )
+        && request.resource.data.updatedAt is timestamp
+        && hasOnlyFields(['uid', 'email', 'name', 'createdAt', 'updatedAt']);
+
+      // Hard delete not permitted; account lifecycle managed server-side
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // conversations/{conversationId}
+    // =========================================================
+    // Schema:
+    //   uid:        string  (owner uid, immutable)
+    //   title:      string  (mutable)
+    //   createdAt:  timestamp (immutable)
+    //   updatedAt:  timestamp (mutable)
+    //   deletedAt:  timestamp | null (soft delete; null = active)
+    //
+    // Write path: Firebase Functions (Admin SDK) — not client.
+    // Clients may only read their own non-deleted conversations.
+    // =========================================================
+    match /conversations/{conversationId} {
+
+      // Single document read — must own it and it must not be deleted
+      allow get: if isOwner(resource.data.uid) && notDeleted();
+
+      // List read — security rules enforce ownership per-document;
+      // any query that would return another user's conversation will fail.
+      // Clients must always filter: where('uid', '==', uid) && where('deletedAt', '==', null)
+      allow list: if isAuthenticated()
+        && resource.data.uid == request.auth.uid
+        && notDeleted();
+
+      // Create is permitted client-side so the frontend can open a conversation
+      // before submitting the first query (optimistic UX). The backend validates
+      // conversationId ownership before writing messages.
+      allow create: if isOwner(request.resource.data.uid)
+        && isValidString(request.resource.data.title, 256)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.deletedAt == null
+        && hasOnlyFields(['uid', 'title', 'createdAt', 'updatedAt', 'deletedAt']);
+
+      // Update: title rename or soft delete only — ownership is immutable
+      allow update: if isOwner(resource.data.uid)
+        && isOwner(request.resource.data.uid)             // uid cannot change
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt is timestamp
+        && (
+             // Branch 1: soft delete (set deletedAt to a timestamp)
+             (
+               request.resource.data.deletedAt is timestamp
+               && resource.data.deletedAt == null
+               && request.resource.data.title == resource.data.title
+             )
+             ||
+             // Branch 2: rename title (deletedAt stays null)
+             (
+               request.resource.data.deletedAt == null
+               && isValidString(request.resource.data.title, 256)
+             )
+           )
+        && hasOnlyFields(['uid', 'title', 'createdAt', 'updatedAt', 'deletedAt']);
+
+      // Hard delete not permitted; use soft delete
+      allow delete: if false;
+
+      // =====================================================
+      // conversations/{conversationId}/messages/{messageId}
+      // =====================================================
+      // Schema:
+      //   uid:             string  (owner uid, == conversation.uid, immutable)
+      //   conversationId:  string  (== conversationId path segment, immutable)
+      //   role:            'user' | 'assistant' (immutable)
+      //   content:         string  (≤ 10 000 chars, immutable)
+      //   version:         string  ('v1' | 'v2', immutable)
+      //   parentMessageId: string? (linked-turn chain, immutable)
+      //   citations:       list?   (source refs; assistant messages only, immutable)
+      //   createdAt:       timestamp (immutable)
+      //   deletedAt:       timestamp | null (soft delete only)
+      //
+      // Write path: Firebase Functions (Admin SDK) writes all messages.
+      // Clients may only read and soft-delete their own non-deleted messages.
+      // The immutable audit trail is enforced: no field edits, only deletedAt.
+      // =====================================================
+      match /messages/{messageId} {
+
+        // Read — caller must own the message and it must not be soft-deleted.
+        // uid is stored on the message itself to avoid an extra get() round-trip.
+        allow get: if isOwner(resource.data.uid)
+          && resource.data.deletedAt == null;
+
+        allow list: if isAuthenticated()
+          && resource.data.uid == request.auth.uid
+          && resource.data.deletedAt == null;
+
+        // Create is intentionally disabled for clients.
+        // All messages are written by the Firebase Functions backend via Admin SDK,
+        // which ensures safety filters, embeddings, and abstention gates are applied.
+        allow create: if false;
+
+        // Soft delete only — every other field must remain unchanged
+        allow update: if isOwner(resource.data.uid)
+          && resource.data.deletedAt == null          // can only delete once
+          && request.resource.data.deletedAt is timestamp
+          // All immutable fields must be identical
+          && request.resource.data.uid            == resource.data.uid
+          && request.resource.data.conversationId == resource.data.conversationId
+          && request.resource.data.role           == resource.data.role
+          && request.resource.data.content        == resource.data.content
+          && request.resource.data.version        == resource.data.version
+          && request.resource.data.createdAt      == resource.data.createdAt;
+
+        // Hard delete not permitted; use soft delete
+        allow delete: if false;
+      }
+    }
+
+    // =========================================================
+    // health_chunks/{chunkId}
+    // =========================================================
+    // Stores RAG corpus documents with 768-dim Firestore vector embeddings.
+    // Schema:
+    //   text:         string  (chunk text, ≤ 512 tokens)
+    //   embedding:    vector<768> (Vertex AI text-embedding-004 output)
+    //   jurisdiction: string  (always "Zambia" for Phase 1)
+    //   sourceTitle:  string  (source document title)
+    //   sourceUrl:    string? (URL or GCS path)
+    //   documentId:   string  (parent document identifier)
+    //   chunkIndex:   number  (position within parent document)
+    //   tokenCount:   number  (≤ 512)
+    //   createdAt:    timestamp
+    //
+    // Access: Ingestion pipeline (GitHub Actions SA) writes via Admin SDK.
+    //         Runtime functions service account reads via IAM (datastore.user role).
+    //         No client access permitted.
+    // =========================================================
+    match /health_chunks/{chunkId} {
+      allow read, write: if false;
+    }
+
+    // =========================================================
+    // query_logs/{logId}
+    // =========================================================
+    // Immutable query audit trail. Written by Firebase Functions.
+    // Schema:
+    //   uid:               string
+    //   query:             string
+    //   similarityScore:   number | null
+    //   topChunkIds:       list<string>
+    //   abstained:         boolean
+    //   emergencyTriggered: boolean
+    //   timestamp:         timestamp
+    // =========================================================
+    match /query_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    // =========================================================
+    // abstention_logs/{logId}
+    // =========================================================
+    // Tracks every deterministic abstention for threshold calibration analytics.
+    // Schema:
+    //   uid:             string
+    //   query:           string
+    //   reason:          'no_documents' | 'low_similarity' | 'emergency'
+    //   maxSimilarity:   number | null
+    //   timestamp:       timestamp
+    // =========================================================
+    match /abstention_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    // =========================================================
+    // rate_limits/{userId}
+    // =========================================================
+    // Per-user sliding window rate limit counters.
+    // Written and read exclusively by Firebase Functions.
+    // Schema:
+    //   uid:          string
+    //   requestCount: number
+    //   windowStart:  timestamp
+    //   updatedAt:    timestamp
+    // =========================================================
+    match /rate_limits/{userId} {
+      allow read, write: if false;
+    }
+
+    // =========================================================
+    // Catch-all deny
+    // =========================================================
+    // Any collection not explicitly matched above is denied.
+    // This is the fail-safe default.
+    // =========================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+  }
+}

@@ -1,6 +1,6 @@
 Zambia Health RAG Platform
-
 Ministry of Health / WHO Grounded AI System
+
 Status: Final Architecture
 Environment: Google Cloud + Firebase + Vertex AI
 Repository Pattern: Turbo Monorepo
@@ -9,7 +9,7 @@ Repository Pattern: Turbo Monorepo
 
 Deliver a secure, citation-backed AI health assistant for Zambia that:
 
-Only answers using official Zambia-specific health guidance
+Answers only using official Zambia-specific health guidance
 
 Deterministically abstains when insufficient evidence exists
 
@@ -17,11 +17,13 @@ Prevents unauthorized API usage
 
 Maintains predictable cost and auditability
 
+Enforces strict jurisdictional grounding
+
 This system is a controlled medical retrieval engine — not an open-domain chatbot.
 
 2. Architectural Principles
 
-The LLM is the final step, not the decision-maker.
+The LLM is the final step — not the decision-maker.
 
 Retrieval quality determines answer eligibility.
 
@@ -33,90 +35,102 @@ Least privilege IAM is strictly enforced.
 
 Abstention behavior is deterministic and model-independent.
 
+Jurisdictional filtering is enforced at retrieval layer — not prompt layer.
+
 3. System Architecture
 
-The platform follows a Modular RAG (Retrieval-Augmented Generation) architecture inside a Turbo Monorepo.
+The platform follows a Modular Retrieval-Augmented Generation (RAG) architecture inside a Turbo Monorepo.
 
 3.1 High-Level Flow
 
-Client → Query submission
-
-App Check attestation
-
-Backend verification
-
-Safety filter
-
-Embedding generation
-
-Vector retrieval
-
-Abstention gate
-
-Controlled LLM generation
+Client
+→ Query submission
+→ App Check attestation
+→ Backend verification
+→ Safety filter
+→ Embedding generation
+→ Firestore vector retrieval
+→ Deterministic abstention gate
+→ Controlled LLM generation
 
 3.2 Detailed Request Pipeline
-Step 1 — Client
+Step 1 — Client Layer
 
-React (Vite) application
+Frontend:
 
-Firebase App Check with reCAPTCHA Enterprise
+React (Vite)
 
 Firebase Auth (Email/Password)
 
-The client sends:
+Firebase App Check (reCAPTCHA Enterprise)
+
+Client sends:
 
 query
 
-X-Firebase-AppCheck token
+Firebase Auth token
 
-Auth token
+App Check token
 
 Step 2 — Transport Layer
 
 tRPC ensures end-to-end type safety
 
-Firebase Functions Gen 2 handles execution
+Firebase Functions Gen 2 executes backend logic
+
+No public Vertex AI access from client
 
 Step 3 — Middleware Enforcement
 
-The backend validates:
+Backend validates:
 
 App Check token
 
 Firebase Auth token
 
-request.auth.uid ownership
+request.auth.uid
 
-Emergency keyword presence
+Emergency keyword detection
 
-If emergency keywords are detected:
+If emergency keywords detected:
 
-RAG pipeline is aborted
+RAG pipeline aborted
 
-Zambia emergency number (992) is shown
+Zambia emergency number (992) returned
 
-No LLM call is made
+No embedding call
+
+No LLM invocation
+
+This is a hard gate, not advisory.
 
 Step 4 — Embedding
 
 Model: text-embedding-004 (Vertex AI)
 
-Query converted to vector representation
+Query converted to 768-dimensional vector
 
-Embedding request logged for monitoring
+Embedding request logged
+
+No document task type used (RETRIEVAL_QUERY enforced)
 
 Step 5 — Retrieval
 
-Database: Firestore Vector Search
+Database: Firestore Native Vector Search
 
 Constraints:
 
 Filter: jurisdiction == "Zambia"
 
-Top-3 documents retrieved
+Top-K: 3
+
+Distance metric: COSINE
 
 Similarity score recorded
+
+Jurisdiction filtering occurs at query time.
+
+LLM never sees out-of-scope documents.
 
 Step 6 — Deterministic Abstention Gate
 
@@ -126,9 +140,9 @@ No Zambia-jurisdiction documents found
 
 max(similarity_score) < ABSTENTION_THRESHOLD
 
-High-risk emergency terms detected
+Emergency medical terms detected
 
-Threshold value (from Secret Manager):
+Threshold (Secret Manager controlled):
 
 ABSTENTION_THRESHOLD = 0.75
 
@@ -138,19 +152,26 @@ I cannot find official Zambian health guidance for this. Please consult a qualif
 
 The LLM is never invoked in this branch.
 
+Abstention is deterministic and independent of model behavior.
+
 Step 7 — Controlled Generation
 
 Model: Gemini 1.5 Flash
 
 Constraints:
 
-Context limited strictly to retrieved documents
+Context strictly limited to retrieved documents
 
-No external knowledge allowed
+No external knowledge permitted
 
-Response must include source citations (MoH / WHO)
+Mandatory source citations
 
-Temperature kept low for factual stability
+Low temperature for factual determinism
+
+Token-limited prompt window
+
+The model does not determine truth.
+Retrieval + policy determine eligibility.
 
 4. Chunking Strategy (Corpus Ingestion)
    4.1 Strategy Overview
@@ -163,27 +184,25 @@ Headings
 
 Paragraph boundaries
 
-Enforce max size:
+Medical section divisions
 
-~400–600 tokens per chunk
+Constraints:
 
-Apply overlap:
+512 tokens per chunk
 
-~10–15% token overlap
+50 token overlap
 
-Preserves cross-boundary context
-
-Token-based chunking is used (not character-based) to ensure embedding consistency.
+Token-based chunking (not character-based)
 
 4.2 Rationale
 
-Preserves medical section integrity (Prevention, Treatment, Dosage)
+Preserves medical section integrity (Prevention, Dosage, Treatment)
 
-Avoids boundary fragmentation
+Prevents semantic fragmentation
 
-Balances retrieval precision with context completeness
+Maintains stable similarity distribution
 
-Keeps similarity distribution stable for 0.75 threshold
+Optimizes precision at 0.75 threshold
 
 Chunk size and abstention threshold are treated as coupled parameters.
 
@@ -202,14 +221,14 @@ Chunk size and abstention threshold are treated as coupled parameters.
 
 6. Tech Stack
    Layer Technology
-   Frontend React + Vite + Tailwind
+   Frontend React + Vite
    Backend Firebase Functions Gen 2
    API tRPC
    Authentication Firebase Auth
    Security Firebase App Check
    Embeddings Vertex AI text-embedding-004
    LLM Gemini 1.5 Flash
-   Vector Store Firestore Vector Search
+   Vector Store Firestore Native Vector Search
    Secrets GCP Secret Manager
    CI/CD GitHub Actions
 7. IAM & Access Control
@@ -227,7 +246,9 @@ Purpose:
 
 Deployment
 
-Corpus storage management
+Corpus ingestion
+
+Infrastructure management
 
 7.2 Runtime Service Account
 
@@ -241,47 +262,35 @@ roles/logging.logWriter
 
 Purpose:
 
-Call Gemini
-
 Generate embeddings
+
+Call Gemini
 
 Read/write Firestore
 
-Log request metadata
+Log metadata
 
-Deployment permissions are strictly separated from runtime permissions.
+Deployment and runtime identities are strictly separated.
 
-8. Data Model & CRUD
+8. Data Model & Governance
 
-All data scoped to:
+All user-scoped data filtered by:
 
 request.auth.uid
 
-8.1 Chat Query Validation
-z.string().min(1).max(2000)
+Includes:
 
-8.2 Read History
+Cursor-based pagination
 
-Pagination: limit(20)
+Message versioning (v1, v2)
 
-Cursor-based navigation
+Linked parent structure
 
-Filter by jurisdiction and non-deleted records
+Soft deletes (deletedAt)
 
-8.3 Message Versioning
+Immutable audit trail
 
-Each message has version field (v1, v2)
-
-Editing creates new branch
-
-Linked-list parentId structure
-
-Audit trail preserved
-
-8.4 Soft Delete
-deletedAt: Timestamp | null
-
-Queries always include:
+Every query enforces:
 
 where("deletedAt", "==", null)
 
@@ -293,36 +302,115 @@ gs://zambia-health-corpus/
 
 Access:
 
-Ingestion pipeline
+Ingestion pipeline (write)
 
 Runtime service account (read-only)
 
-Public access disabled.
+Public access disabled
 
-10. Environment & Secrets
-    Frontend (.env.local)
+10. Why We Chose Firestore Native Vector Search
+    Architectural Decision Record (ADR-001)
+    Decision
 
-VITE_FIREBASE_API_KEY
+Use Firestore Native Vector Search for Phase 1 instead of Vertex AI Vector Search.
 
-VITE_RECAPTCHA_SITE_KEY
+Context
 
-VITE_APP_CHECK_DEBUG_TOKEN
+Two options were evaluated:
 
-Backend (Secret Manager)
+Vertex AI Vector Search (dedicated index endpoints)
 
-ABSTENTION_THRESHOLD = 0.75
+Firestore Native Vector Search (serverless)
 
-GCP_PROJECT_ID
+Evaluation Criteria
 
-GCP_LOCATION = us-central1
+Idle cost
 
-CI/CD Secrets
+Operational complexity
 
-FIREBASE_SERVICE_ACCOUNT_JSON
+Security surface
 
-APP_CHECK_DEBUG_TOKEN_FROM_CI
+Scalability requirements
 
-11. Safety Enforcement Summary
+Jurisdictional filtering
+
+Predictable budgeting
+
+Vertex AI Vector Search
+
+Pros:
+
+Massive scale
+
+Ultra-low latency
+
+Advanced filtering
+
+Enterprise-grade throughput
+
+Cons:
+
+Always-on index endpoint
+
+Node-hour billing
+
+~$100+/month baseline cost
+
+Increased operational surface
+
+Firestore Native Vector Search
+
+Pros:
+
+Fully serverless
+
+$0 idle cost
+
+Integrated with Firestore security rules
+
+Simple IAM model
+
+No deployed infrastructure
+
+Suitable for controlled corpus (<1M chunks)
+
+Cons:
+
+Slightly higher latency than dedicated vector DB
+
+Not optimized for billion-scale search
+
+Decision Rationale
+
+The Zambia Health RAG platform:
+
+Uses a controlled, jurisdiction-restricted corpus
+
+Does not require million-scale retrieval
+
+Prioritizes cost predictability
+
+Must scale to zero when idle
+
+Must remain operationally simple for government context
+
+Firestore Native Vector Search satisfies all requirements without introducing persistent infrastructure cost.
+
+Future Migration Path
+
+If corpus scale or throughput requirements exceed Firestore capabilities:
+
+Phase 2 includes optional migration to:
+
+Vertex AI Vector Search
+
+With threshold calibration dashboard
+
+And monitored similarity analytics
+
+The architecture is designed to make this upgrade non-breaking.
+
+11. Safety Guarantees
 
 The system guarantees:
 
@@ -336,13 +424,16 @@ Strict IAM separation
 
 Scoped user data access
 
-Model behavior constrained by retrieved context
+Model grounding enforcement
 
-The LLM does not determine truth. Retrieval and policy do.
+No open-domain knowledge injection
+
+The LLM does not determine truth.
+
+Retrieval + policy do.
 
 12. Roadmap
-
-Phase 1 — MVP
+    Phase 1 — MVP
 
 Firestore Vector Search
 
@@ -354,9 +445,9 @@ App Check enforcement
 
 Phase 2 — Scalability
 
-Vertex AI Vector Search index
+Optional Vertex AI Vector Search
 
-Similarity score monitoring dashboard
+Similarity score monitoring
 
 Threshold calibration analytics
 
@@ -368,14 +459,16 @@ Multilingual embedding evaluation
 
 Sentence-level citation anchoring
 
-Now zoom out.
+Final Statement
 
-You have built a health AI that:
+This platform is engineered to:
 
-Cannot hallucinate beyond its corpus
+Prevent hallucination
 
-Cannot answer outside Zambia jurisdiction
+Prevent jurisdiction drift
 
-Cannot run without App Check
+Prevent unauthorized access
 
-Cannot bypass similarity gating
+Prevent uncontrolled cost growth
+
+It is a health guidance retrieval engine — not a chatbot.
