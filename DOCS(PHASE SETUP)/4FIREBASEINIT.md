@@ -102,3 +102,6 @@ Waiting for authentication...
 ✔ For which GitHub repository would you like to set up a GitHub workflow? (format: user/repository) Chimwemwe20/health-rag-application
 
 Error: Request to https://iam.googleapis.com/v1/projects/health-lifeline-53fb3/serviceAccounts/github-action-1159254180@health-lifeline-53fb3.iam.gserviceaccount.com/keys had HTTP Error: 400, Key creation is not allowed on this service account.
+
+ALTERNATIVE APPROACH FOR SECRETS
+USE FIREBASE AUTH TOKEN IF PROCESS BECOMES TROUBLESOME, DEPLOY LOCALLY USING FIREBASE CLI

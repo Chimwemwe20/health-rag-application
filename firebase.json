@@ -1,14 +1,18 @@
 {
   "firestore": {
+    "database": "(default)",
+    "location": "europe-west2",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
   "functions": [
     {
       "source": "apps/functions",
+      "region": "europe-west2",
       "codebase": "default",
+      "runtime": "nodejs22",
       "ignore": ["node_modules", ".git", "firebase-debug.log", "firestore-debug.log"],
-      "predeploy": ["pnpm --filter functions build"]
+      "predeploy": ["pnpm --filter shared build", "pnpm --filter functions build"]
     }
   ],
   "hosting": {
@@ -19,17 +23,12 @@
         "source": "**",
         "destination": "/index.html"
       }
-    ]
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
   },
-  "emulators": {
-    "auth": { "port": 9099 },
-    "firestore": { "port": 8080 },
-    "functions": { "port": 5001 },
-    "hosting": { "port": 5000 },
-    "ui": {
-      "enabled": true,
-      "port": 4000
-    },
-    "singleProjectMode": true
+  "auth": {
+    "service": "identitytoolkit.googleapis.com",
+    "location": "global"
   }
 }
