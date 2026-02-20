@@ -7,11 +7,12 @@
     "dev": "vite --clearScreen false",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint": "eslint --ext .ts,.tsx src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@repo/functions": "workspace:*",
     "@repo/shared": "workspace:*",
     "@repo/ui": "workspace:*",
