@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Heartbeat,
   Brain,
@@ -38,6 +39,7 @@ const NAV_LINKS = [
 
 function Navbar({ theme, onToggle }: { theme: string; onToggle: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -80,7 +82,11 @@ function Navbar({ theme, onToggle }: { theme: string; onToggle: () => void }) {
               )}
             </button>
 
-            <Button size="sm" className="hidden gap-1.5 sm:inline-flex">
+            <Button
+              size="sm"
+              onClick={() => navigate('/authentication')}
+              className="hidden gap-1.5 sm:inline-flex"
+            >
               Get Started
               <ArrowRight size={14} weight="bold" />
             </Button>
@@ -109,7 +115,11 @@ function Navbar({ theme, onToggle }: { theme: string; onToggle: () => void }) {
                   {link.label}
                 </a>
               ))}
-              <Button size="sm" className="mt-1 w-fit gap-1.5">
+              <Button
+                size="sm"
+                onClick={() => navigate('/authentication')}
+                className="mt-1 w-fit gap-1.5"
+              >
                 Get Started
                 <ArrowRight size={14} weight="bold" />
               </Button>
@@ -126,6 +136,7 @@ function Navbar({ theme, onToggle }: { theme: string; onToggle: () => void }) {
 // ─────────────────────────────────────────────────────────────────
 
 function HeroSection() {
+  const navigate = useNavigate()
   return (
     <section className="relative overflow-hidden py-16 md:py-24 lg:py-32">
       <div
@@ -158,7 +169,11 @@ function HeroSection() {
             </p>
 
             <div className="flex flex-wrap gap-3">
-              <Button size="lg" className="gap-2 shadow-md">
+              <Button
+                size="lg"
+                onClick={() => navigate('/authentication')}
+                className="gap-2 shadow-md"
+              >
                 Ask a Question
                 <ArrowRight size={16} weight="bold" />
               </Button>
