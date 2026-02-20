@@ -11,8 +11,20 @@ vi.mock('../lib/trpc', () => ({
       list: {
         useQuery: vi.fn(() => ({
           data: [
-            { id: 'user-1', email: 'user1@example.com', name: 'User One' },
-            { id: 'user-2', email: 'user2@example.com', name: 'User Two' },
+            {
+              uid: 'user-1',
+              email: 'user1@example.com',
+              name: 'User One',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              uid: 'user-2',
+              email: 'user2@example.com',
+              name: 'User Two',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
           ],
           isLoading: false,
           error: null,
@@ -20,7 +32,13 @@ vi.mock('../lib/trpc', () => ({
       },
       getById: {
         useQuery: vi.fn(() => ({
-          data: { id: 'user-1', email: 'user1@example.com', name: 'User One' },
+          data: {
+            uid: 'user-1',
+            email: 'user1@example.com',
+            name: 'User One',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
           isLoading: false,
           error: null,
         })),
@@ -29,9 +47,11 @@ vi.mock('../lib/trpc', () => ({
         useMutation: vi.fn(() => ({
           mutate: vi.fn(),
           mutateAsync: vi.fn().mockResolvedValue({
-            id: 'new-user',
+            uid: 'new-user',
             email: 'new@example.com',
             name: 'New User',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           }),
           isLoading: false,
           error: null,
@@ -74,7 +94,7 @@ describe('useUser', () => {
       wrapper: createWrapper(),
     })
     expect(result.current.data).toBeDefined()
-    expect(result.current.data?.id).toBe('user-1')
+    expect(result.current.data?.uid).toBe('user-1')
   })
 })
 

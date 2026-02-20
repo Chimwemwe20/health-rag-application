@@ -1,0 +1,89 @@
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut as _signOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { auth, db } from './firebase'
+
+const googleProvider = new GoogleAuthProvider()
+
+/**
+ * Write a users/{uid} document if one doesn't already exist.
+ * Matches the Firestore rules schema:
+ *   { uid, email, name?, createdAt, updatedAt }
+ * name is omitted when falsy to satisfy hasOnlyFields validation.
+ */
+async function ensureUserProfile(user: User, name?: string): Promise<void> {
+  const ref = doc(db, 'users', user.uid)
+  const snap = await getDoc(ref)
+  if (snap.exists()) return
+
+  const data: Record<string, unknown> = {
+    uid: user.uid,
+    email: user.email!,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }
+  if (name) data.name = name
+
+  await setDoc(ref, data)
+}
+
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  name: string
+): Promise<User> {
+  const { user } = await createUserWithEmailAndPassword(auth, email, password)
+  await updateProfile(user, { displayName: name })
+  await ensureUserProfile(user, name)
+  return user
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<User> {
+  const { user } = await signInWithEmailAndPassword(auth, email, password)
+  return user
+}
+
+export async function signInWithGoogle(): Promise<User> {
+  const { user } = await signInWithPopup(auth, googleProvider)
+  await ensureUserProfile(user, user.displayName ?? undefined)
+  return user
+}
+
+export async function signOut(): Promise<void> {
+  await _signOut(auth)
+}
+
+export function getAuthErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case 'auth/user-not-found':
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'No account found with these credentials.'
+    case 'auth/wrong-password':
+      return 'Incorrect password. Please try again.'
+    case 'auth/email-already-in-use':
+      return 'An account with this email already exists. Please sign in.'
+    case 'auth/weak-password':
+      return 'Password is too weak. Please choose a stronger password.'
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.'
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please try again later.'
+    case 'auth/network-request-failed':
+      return 'Network error. Please check your connection and try again.'
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Sign-in was cancelled.'
+    case 'auth/popup-blocked':
+      return 'Pop-up was blocked by your browser. Please allow pop-ups and try again.'
+    default:
+      return 'Something went wrong. Please try again.'
+  }
+}
