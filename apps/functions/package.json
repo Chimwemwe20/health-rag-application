@@ -23,15 +23,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@repo/shared": "file:../../packages/shared",
+    "@repo/shared": "workspace:*",
     "@trpc/server": "^11.0.0-rc.660",
     "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.0.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@repo/config": "file:../../packages/config",
-    "@repo/eslint-config": "file:../../packages/eslint-config",
+    "@repo/config": "workspace:*",
+    "@repo/eslint-config": "workspace:*",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "eslint": "^8.57.0",
