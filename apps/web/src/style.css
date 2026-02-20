@@ -3,108 +3,310 @@
 @tailwind utilities;
 
 /* =============================================================================
-   Shadcn UI Theme Variables
-   =============================================================================
-   🎨 ANALOGY: These CSS variables are like the "color palette" for a painter.
-   Instead of hardcoding colors everywhere, we define them once here,
-   and all Shadcn components automatically use these colors!
-   
-   This makes it easy to change the entire look of your app by just
-   updating these values - like changing the mood lighting in a theater!
+   HYTEL HEALTH — Core Design System
+   Brand palette:
+     Primary   Deep Navy     #1A365D  → hsl(215 56% 23%)
+     Secondary Medical Teal  #2D8A8A  → hsl(180 51% 36%)
+     Background Off-White    #F8FAFC  → hsl(210 38% 98%)
+     Accent    Soft Blue     #63B3ED  → hsl(205 79% 66%)
+     Error     Soft Coral    #F56565  → hsl(0   88% 68%)
+     Success   Mint Green    #48BB78  → hsl(145 46% 51%)
    ============================================================================= */
 
 @layer base {
+  /* ── Light Mode ─────────────────────────────────────────────── */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    /* Shadcn-compatible semantic tokens */
+    --background:         210 38% 98%;   /* Off-White   #F8FAFC  */
+    --foreground:         215 56% 15%;   /* Dark Navy   #0F2240  */
+
+    --card:               0 0% 100%;
+    --card-foreground:    215 56% 15%;
+
+    --popover:            0 0% 100%;
+    --popover-foreground: 215 56% 15%;
+
+    --primary:            215 56% 23%;   /* Deep Navy   #1A365D  */
+    --primary-foreground: 210 38% 98%;   /* Off-White            */
+
+    --secondary:          180 51% 36%;   /* Medical Teal #2D8A8A */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted:              210 20% 94%;
+    --muted-foreground:   215 16% 47%;
+
+    --accent:             205 79% 66%;   /* Soft Blue   #63B3ED  */
+    --accent-foreground:  215 56% 15%;
+
+    --destructive:        0 88% 68%;     /* Soft Coral  #F56565  */
+    --destructive-foreground: 0 0% 100%;
+
+    --success:            145 46% 51%;   /* Mint Green  #48BB78  */
+    --success-foreground: 0 0% 100%;
+
+    --warning:            38 92% 60%;    /* Amber                */
+    --warning-foreground: 215 56% 15%;
+
+    --border:             210 20% 88%;
+    --input:              210 20% 88%;
+    --ring:               205 79% 66%;   /* Soft Blue            */
+
+    --radius: 0.625rem;
+
+    /* ── Raw brand tokens (for arbitrary Tailwind usage) ── */
+    --brand-navy:   215 56% 23%;
+    --brand-teal:   180 51% 36%;
+    --brand-blue:   205 79% 66%;
+    --brand-coral:  0   88% 68%;
+    --brand-mint:   145 46% 51%;
   }
 
+  /* ── Dark Mode ──────────────────────────────────────────────── */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --background:         215 56% 8%;    /* Very dark navy       */
+    --foreground:         210 38% 93%;   /* Off-white            */
+
+    --card:               215 47% 12%;
+    --card-foreground:    210 38% 93%;
+
+    --popover:            215 47% 12%;
+    --popover-foreground: 210 38% 93%;
+
+    /* In dark mode, Soft Blue becomes the primary – it pops nicely */
+    --primary:            205 79% 66%;   /* Soft Blue   #63B3ED  */
+    --primary-foreground: 215 56% 8%;
+
+    --secondary:          180 40% 28%;   /* Muted Teal           */
+    --secondary-foreground: 180 60% 90%;
+
+    --muted:              215 40% 16%;
+    --muted-foreground:   210 20% 60%;
+
+    --accent:             205 79% 66%;
+    --accent-foreground:  215 56% 8%;
+
+    --destructive:        0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success:            145 46% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning:            38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border:             215 36% 20%;
+    --input:              215 36% 20%;
+    --ring:               205 79% 66%;
   }
 }
 
+/* ── Base resets & globals ──────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    margin: 0;
+    min-width: 320px;
+    min-height: 100svh;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight leading-tight;
+  }
+
+  /* Stripped link defaults — components handle their own colours */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Focus rings – consistent across all interactive elements */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: hsl(var(--accent) / 0.25);
+    color: hsl(var(--foreground));
   }
 }
 
-/* =============================================================================
-   Custom Styles
-   ============================================================================= */
+/* ── Reusable component-layer utilities ─────────────────────── */
+@layer components {
+  /* Max-width container with responsive padding */
+  .section-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+  /* Gradient backgrounds */
+  .gradient-hero {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-navy)) 0%,
+      hsl(var(--brand-teal)) 100%
+    );
+  }
+
+  .gradient-cta {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-teal)) 0%,
+      hsl(var(--brand-navy)) 100%
+    );
+  }
+
+  .gradient-accent {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-blue)) 0%,
+      hsl(var(--brand-teal)) 100%
+    );
+  }
+
+  /* Subtle gradient tint for section backgrounds */
+  .gradient-surface {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--background)) 0%,
+      hsl(var(--muted)) 100%
+    );
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-teal)),
+      hsl(var(--brand-blue))
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-warm {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-blue)),
+      hsl(var(--brand-mint))
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Card lift on hover */
+  .card-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Status pill badges */
+  .badge-success {
+    @apply inline-flex items-center gap-1 rounded-full bg-[hsl(145_46%_51%/0.12)] px-2.5 py-0.5 text-xs font-medium text-[hsl(145_46%_38%)];
+  }
+  .dark .badge-success {
+    @apply bg-[hsl(145_46%_42%/0.2)] text-[hsl(145_60%_65%)];
+  }
+
+  .badge-error {
+    @apply inline-flex items-center gap-1 rounded-full bg-[hsl(0_88%_68%/0.12)] px-2.5 py-0.5 text-xs font-medium text-[hsl(0_72%_52%)];
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1 rounded-full bg-[hsl(38_92%_60%/0.12)] px-2.5 py-0.5 text-xs font-medium text-[hsl(38_72%_44%)];
+  }
+
+  /* Glass card effect */
+  .glass-card {
+    @apply border border-white/20 bg-white/10 backdrop-blur-sm;
+  }
 }
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* ── Keyframe animations ────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
 
-.logo {
-  height: 5em;
-  padding: 1em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em hsl(var(--primary) / 0.5));
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-a {
-  font-weight: 500;
-  color: hsl(var(--primary));
-  text-decoration: inherit;
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0);     }
 }
-a:hover {
-  text-decoration: underline;
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0   hsl(var(--brand-teal) / 0.4); }
+  70%  { box-shadow: 0 0 0 12px hsl(var(--brand-teal) / 0);  }
+  100% { box-shadow: 0 0 0 0   hsl(var(--brand-teal) / 0);   }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0);    }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ── Animation utility classes ──────────────────────────────── */
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out both;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.5s ease-out infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Stagger helpers */
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+
+/* ── Scrollbar (optional subtle custom scrollbar) ───────────── */
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
 }
