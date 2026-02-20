@@ -30,6 +30,11 @@
     "syncpack": "^13.0.0",
     "turbo": "^2.7.5"
   },
+  "pnpm": {
+    "overrides": {
+      "minimatch": "^10.2.2"
+    }
+  },
   "packageManager": "pnpm@8.15.6",
   "engines": {
     "node": ">=20"
