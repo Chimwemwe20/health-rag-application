@@ -3,10 +3,17 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./router": "./src/trpc/router.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./router": {
+      "types": "./src/trpc/router.ts",
+      "default": "./dist/trpc/router.js"
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -18,13 +25,18 @@
   "dependencies": {
     "@repo/shared": "workspace:*",
     "@trpc/server": "^11.0.0-rc.660",
+    "firebase-admin": "^13.6.1",
+    "firebase-functions": "^7.0.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",
     "@repo/eslint-config": "workspace:*",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
     "eslint": "^8.57.0",
-    "typescript": "5.5.4",
+    "eslint-plugin-import": "^2.32.0",
+    "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }
 }

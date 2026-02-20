@@ -1,15 +1,12 @@
 {
-  "extends": "../../packages/config/tsconfig.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "moduleDetection": "force",
-    "target": "ES2022",
     "allowImportingTsExtensions": false,
     "noEmit": false,
     "declaration": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "declarationDir": "./dist"
   },
-  "include": ["src"]
+  "exclude": ["**/*.test.ts"]
 }

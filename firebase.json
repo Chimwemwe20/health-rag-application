@@ -1,0 +1,34 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "europe-west2",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "apps/functions",
+      "region": "europe-west2",
+      "codebase": "default",
+      "runtime": "nodejs22",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firestore-debug.log"],
+      "predeploy": ["pnpm --filter shared build", "pnpm --filter functions build"]
+    }
+  ],
+  "hosting": {
+    "public": "apps/web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
+  },
+  "auth": {
+    "service": "identitytoolkit.googleapis.com",
+    "location": "global"
+  }
+}
