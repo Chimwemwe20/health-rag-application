@@ -9,9 +9,13 @@ import {
   X,
   Sun,
   Moon,
+  Check,
 } from '@phosphor-icons/react'
 import type { User } from 'firebase/auth'
 import type { Conversation } from '../types/chat'
+import { PencilSimple, Trash } from '@phosphor-icons/react'
+import { toast } from '@repo/ui/Toast'
+import { renameConversation, softDeleteConversation } from '../lib/conversations'
 
 // ─────────────────────────────────────────────────────────────────
 // User avatar — initials circle using gradient-cta from style.css
@@ -34,10 +38,14 @@ function ConversationItem({
   conv,
   active,
   onSelect,
+  beginRename,
+  beginDelete,
 }: {
   conv: Conversation
   active: boolean
   onSelect: () => void
+  beginRename: () => void
+  beginDelete: () => void
 }) {
   const mins = Math.floor((Date.now() - conv.updatedAt.getTime()) / 60_000)
   let timeLabel: string
@@ -48,18 +56,35 @@ function ConversationItem({
   else timeLabel = `${Math.floor(mins / 1440)}d ago`
 
   return (
-    <button
-      onClick={onSelect}
+    <div
       className={[
-        'flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-left transition-colors duration-150',
+        'group flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 transition-colors duration-150',
         active
           ? 'bg-muted text-foreground'
           : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
       ].join(' ')}
     >
-      <span className="truncate text-xs font-medium leading-snug">{conv.title}</span>
-      <span className="text-[10px] opacity-50">{timeLabel}</span>
-    </button>
+      <button onClick={onSelect} className="flex min-w-0 flex-col text-left">
+        <span className="truncate text-xs font-medium leading-snug">{conv.title}</span>
+        <span className="text-[10px] opacity-50">{timeLabel}</span>
+      </button>
+      <div className="ml-2 hidden shrink-0 items-center gap-1.5 group-hover:flex">
+        <button
+          aria-label="Rename"
+          onClick={beginRename}
+          className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted/80"
+        >
+          <PencilSimple size={12} />
+        </button>
+        <button
+          aria-label="Delete"
+          onClick={beginDelete}
+          className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-destructive/10 text-destructive"
+        >
+          <Trash size={12} />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -111,6 +136,10 @@ export function Sidebar({
   user,
 }: SidebarProps) {
   const [search, setSearch] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const filtered = conversations.filter(c => c.title.toLowerCase().includes(search.toLowerCase()))
 
@@ -206,17 +235,107 @@ export function Sidebar({
               <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Recent
               </p>
-              {filtered.map(conv => (
-                <ConversationItem
-                  key={conv.id}
-                  conv={conv}
-                  active={activeConvId === conv.id}
-                  onSelect={() => {
-                    onSelectConv(conv.id)
-                    onClose()
-                  }}
-                />
-              ))}
+              {filtered.map(conv =>
+                editingId === conv.id ? (
+                  <div
+                    key={conv.id}
+                    className={[
+                      'flex items-center gap-2 rounded-md px-2.5 py-2',
+                      activeConvId === conv.id ? 'bg-muted' : 'hover:bg-muted/60',
+                    ].join(' ')}
+                  >
+                    <input
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs"
+                      autoFocus
+                      maxLength={256}
+                      placeholder="Chat name"
+                    />
+                    <button
+                      disabled={!editValue.trim() || busyId === conv.id}
+                      onClick={async () => {
+                        const title = editValue.trim()
+                        if (!title) return
+                        setBusyId(conv.id)
+                        try {
+                          await renameConversation(conv.id, title)
+                          setEditingId(null)
+                        } catch (e: unknown) {
+                          const msg =
+                            e instanceof Error ? e.message : 'Unable to rename conversation.'
+                          toast.error(msg)
+                        } finally {
+                          setBusyId(null)
+                        }
+                      }}
+                      className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted/80 disabled:opacity-50"
+                      aria-label="Save"
+                    >
+                      <Check size={12} />
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-muted/80"
+                      aria-label="Cancel"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : deletingId === conv.id ? (
+                  <div
+                    key={conv.id}
+                    className={[
+                      'flex items-center justify-between gap-2 rounded-md px-2.5 py-2 text-sm',
+                      activeConvId === conv.id ? 'bg-muted' : 'hover:bg-muted/60',
+                    ].join(' ')}
+                  >
+                    <span className="text-[11px] text-muted-foreground">Delete this chat?</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        disabled={busyId === conv.id}
+                        onClick={async () => {
+                          setBusyId(conv.id)
+                          try {
+                            await softDeleteConversation(conv.id)
+                          } catch (e: unknown) {
+                            const msg =
+                              e instanceof Error ? e.message : 'Unable to delete conversation.'
+                            toast.error(msg)
+                          } finally {
+                            setBusyId(null)
+                            setDeletingId(null)
+                          }
+                        }}
+                        className="rounded-md bg-destructive/10 px-2 py-1 text-[11px] text-destructive hover:bg-destructive/20 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setDeletingId(null)}
+                        className="rounded-md px-2 py-1 text-[11px] hover:bg-muted/80"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <ConversationItem
+                    key={conv.id}
+                    conv={conv}
+                    active={activeConvId === conv.id}
+                    onSelect={() => {
+                      onSelectConv(conv.id)
+                      onClose()
+                    }}
+                    beginRename={() => {
+                      setEditingId(conv.id)
+                      setEditValue(conv.title)
+                    }}
+                    beginDelete={() => setDeletingId(conv.id)}
+                  />
+                )
+              )}
             </>
           ) : conversations.length > 0 ? (
             // Conversations exist but search matched nothing

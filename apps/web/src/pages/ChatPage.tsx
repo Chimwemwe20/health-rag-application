@@ -21,7 +21,7 @@ import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/auth'
 import { toast } from '@repo/ui/Toast'
 import { useSendMessage } from '../hooks/useChat'
-import { createConversation } from '../lib/conversations'
+import { createConversation, renameConversation } from '../lib/conversations'
 import { useConversations } from '../hooks/useConversations'
 
 // ─────────────────────────────────────────────────────────────────
@@ -87,7 +87,15 @@ function EmptyState({ onPromptClick }: { onPromptClick: (text: string) => void }
 // Chat message bubble
 // ─────────────────────────────────────────────────────────────────
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({
+  message,
+  canEdit,
+  onEdit,
+}: {
+  message: ChatMessage
+  canEdit?: boolean
+  onEdit?: () => void
+}) {
   const isUser = message.role === 'user'
 
   return (
@@ -114,6 +122,15 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         >
           {message.text}
         </div>
+
+        {isUser && canEdit && onEdit && (
+          <button
+            onClick={onEdit}
+            className="text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Edit
+          </button>
+        )}
 
         {/* Sources */}
         {!isUser && message.sources && message.sources.length > 0 && (
@@ -272,6 +289,16 @@ export function ChatPage() {
         conversationId: conversationId ?? 'new',
       })
 
+      // If first message and default title, rename to the first query
+      if (messages.length === 0 && activeConv && activeConv.title === 'New Conversation') {
+        const newTitle = text.slice(0, 256)
+        try {
+          await renameConversation(activeConv.id, newTitle)
+        } catch {
+          // ignore non-fatal rename errors
+        }
+      }
+
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -301,6 +328,8 @@ export function ChatPage() {
       toast.error(message)
     }
   }
+
+  // Sidebar now handles rename and delete inline; no handlers needed here.
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -356,9 +385,28 @@ export function ChatPage() {
           ) : (
             <div className="flex-1 overflow-y-auto px-4 py-6">
               <div className="mx-auto flex max-w-3xl flex-col gap-6">
-                {messages.map(msg => (
-                  <MessageBubble key={msg.id} message={msg} />
-                ))}
+                {messages.map((msg, idx) => {
+                  const canEdit =
+                    msg.role === 'user' &&
+                    idx === messages.length - 2 &&
+                    messages[messages.length - 1]?.role === 'assistant' &&
+                    !sendMessage.isPending
+                  return (
+                    <MessageBubble
+                      key={msg.id}
+                      message={msg}
+                      canEdit={canEdit}
+                      onEdit={
+                        canEdit
+                          ? () => {
+                              setInputValue(msg.text)
+                              setMessages(prev => prev.slice(0, -2))
+                            }
+                          : undefined
+                      }
+                    />
+                  )
+                })}
                 {sendMessage.isPending && <TypingIndicator />}
                 <div ref={bottomRef} />
               </div>
