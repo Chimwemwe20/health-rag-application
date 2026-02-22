@@ -21,7 +21,8 @@ import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/auth'
 import { toast } from '@repo/ui/Toast'
 import { useSendMessage } from '../hooks/useChat'
-import type { Conversation } from '../types/chat'
+import { createConversation } from '../lib/conversations'
+import { useConversations } from '../hooks/useConversations'
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -238,8 +239,7 @@ export function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sendMessage.isPending])
 
-  // TODO: replace with a useConversations() hook once Firestore chat is wired up
-  const conversations: Conversation[] = []
+  const { conversations } = useConversations(user?.uid)
 
   const activeConv = conversations.find(c => c.id === conversationId)
 
@@ -288,6 +288,20 @@ export function ChatPage() {
     }
   }
 
+  async function handleNewChat() {
+    try {
+      if (!user) {
+        navigate('/authentication')
+        return
+      }
+      const id = await createConversation(user.uid, 'New Conversation')
+      navigate(`/chat/${id}`)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unable to create conversation.'
+      toast.error(message)
+    }
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar
@@ -298,7 +312,7 @@ export function ChatPage() {
         conversations={conversations}
         activeConvId={conversationId ?? null}
         onSelectConv={id => navigate(`/chat/${id}`)}
-        onNewChat={() => navigate('/new-chat')}
+        onNewChat={handleNewChat}
         onSignOut={handleSignOut}
         onOpenSettings={() => setSettingsOpen(true)}
         user={user}
