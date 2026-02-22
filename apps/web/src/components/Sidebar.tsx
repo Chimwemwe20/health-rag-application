@@ -93,6 +93,7 @@ export interface SidebarProps {
   onSelectConv: (id: string) => void
   onNewChat: () => void
   onSignOut: () => void
+  onOpenSettings: () => void
   user: User | null
 }
 
@@ -106,6 +107,7 @@ export function Sidebar({
   onSelectConv,
   onNewChat,
   onSignOut,
+  onOpenSettings,
   user,
 }: SidebarProps) {
   const [search, setSearch] = useState('')
@@ -228,7 +230,10 @@ export function Sidebar({
 
         {/* ── Footer ── */}
         <div className="shrink-0 border-t border-border p-3 space-y-0.5">
-          <button className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <button
+            onClick={onOpenSettings}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
             <Gear size={14} />
             Settings
           </button>

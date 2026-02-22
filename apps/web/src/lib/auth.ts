@@ -60,6 +60,12 @@ export async function signOut(): Promise<void> {
   await _signOut(auth)
 }
 
+export async function updateUserProfile(user: User, name: string): Promise<void> {
+  await updateProfile(user, { displayName: name })
+  const ref = doc(db, 'users', user.uid)
+  await setDoc(ref, { name, updatedAt: serverTimestamp() }, { merge: true })
+}
+
 export function getAuthErrorMessage(code: string | undefined): string {
   switch (code) {
     case 'auth/user-not-found':

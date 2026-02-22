@@ -12,6 +12,7 @@ import {
   ChatCircle,
 } from '@phosphor-icons/react'
 import { Sidebar } from '../components/Sidebar'
+import { SettingsPanel } from '../components/SettingsPanel'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/auth'
@@ -131,6 +132,7 @@ export function ChatPage() {
   const { theme, toggle } = useTheme()
   const { user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
 
   // TODO: replace with a useConversations() hook once Firestore chat is wired up
@@ -166,8 +168,11 @@ export function ChatPage() {
         onSelectConv={id => navigate(`/chat/${id}`)}
         onNewChat={() => navigate('/new-chat')}
         onSignOut={handleSignOut}
+        onOpenSettings={() => setSettingsOpen(true)}
         user={user}
       />
+
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} user={user} />
 
       {/* Main panel */}
       <div className="flex min-w-0 flex-1 flex-col">
