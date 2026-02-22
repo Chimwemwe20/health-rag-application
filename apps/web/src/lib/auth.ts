@@ -3,14 +3,23 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  linkWithCredential,
   signOut as _signOut,
   updateProfile,
   type User,
+  type OAuthCredential,
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from './firebase'
 
 const googleProvider = new GoogleAuthProvider()
+
+/**
+ * Holds a Google credential that couldn't be used directly because the email
+ * already exists with the email/password provider. After the user signs in with
+ * email/password we link this credential so both providers work going forward.
+ */
+let pendingGoogleCredential: OAuthCredential | null = null
 
 /**
  * Write a users/{uid} document if one doesn't already exist.
@@ -47,17 +56,50 @@ export async function signUpWithEmail(
 
 export async function signInWithEmail(email: string, password: string): Promise<User> {
   const { user } = await signInWithEmailAndPassword(auth, email, password)
-  return user
-}
 
-export async function signInWithGoogle(): Promise<User> {
-  const { user } = await signInWithPopup(auth, googleProvider)
+  // If the user previously tried Google sign-in with this email, link the
+  // Google provider now so both methods work going forward.
+  if (pendingGoogleCredential) {
+    try {
+      await linkWithCredential(user, pendingGoogleCredential)
+    } catch {
+      // Linking errors are non-fatal — the user is already authenticated.
+    }
+    pendingGoogleCredential = null
+  }
+
   await ensureUserProfile(user, user.displayName ?? undefined)
   return user
 }
 
+export async function signInWithGoogle(): Promise<User> {
+  try {
+    const { user } = await signInWithPopup(auth, googleProvider)
+    await ensureUserProfile(user, user.displayName ?? undefined)
+    return user
+  } catch (error) {
+    const authError = error as { code?: string }
+    if (authError.code === 'auth/account-exists-with-different-credential') {
+      // Store the credential so signInWithEmail can link it after the user
+      // authenticates with their email/password.
+      const credential = GoogleAuthProvider.credentialFromError(
+        error as Parameters<typeof GoogleAuthProvider.credentialFromError>[0]
+      )
+      if (credential) pendingGoogleCredential = credential
+    }
+    throw error
+  }
+}
+
 export async function signOut(): Promise<void> {
+  pendingGoogleCredential = null
   await _signOut(auth)
+}
+
+export async function updateUserProfile(user: User, name: string): Promise<void> {
+  await updateProfile(user, { displayName: name })
+  const ref = doc(db, 'users', user.uid)
+  await setDoc(ref, { name, updatedAt: serverTimestamp() }, { merge: true })
 }
 
 export function getAuthErrorMessage(code: string | undefined): string {
@@ -70,6 +112,8 @@ export function getAuthErrorMessage(code: string | undefined): string {
       return 'Incorrect password. Please try again.'
     case 'auth/email-already-in-use':
       return 'An account with this email already exists. Please sign in.'
+    case 'auth/account-exists-with-different-credential':
+      return 'This email is registered with a different sign-in method. Please sign in with your email and password.'
     case 'auth/weak-password':
       return 'Password is too weak. Please choose a stronger password.'
     case 'auth/invalid-email':
