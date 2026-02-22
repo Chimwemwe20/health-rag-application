@@ -247,6 +247,8 @@ export function ChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const sendMessage = useSendMessage()
@@ -391,20 +393,90 @@ export function ChatPage() {
                     idx === messages.length - 2 &&
                     messages[messages.length - 1]?.role === 'assistant' &&
                     !sendMessage.isPending
+                  const isEditing = editingId === msg.id
                   return (
-                    <MessageBubble
-                      key={msg.id}
-                      message={msg}
-                      canEdit={canEdit}
-                      onEdit={
-                        canEdit
-                          ? () => {
-                              setInputValue(msg.text)
-                              setMessages(prev => prev.slice(0, -2))
-                            }
-                          : undefined
-                      }
-                    />
+                    <div key={msg.id}>
+                      {isEditing ? (
+                        <div className="flex gap-3 flex-row-reverse">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full gradient-cta">
+                            <User size={14} weight="bold" className="text-white" />
+                          </div>
+                          <div className="max-w-[75%] flex flex-col items-end gap-1">
+                            <textarea
+                              value={editingValue}
+                              onChange={e => setEditingValue(e.target.value)}
+                              rows={3}
+                              className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm leading-relaxed text-foreground"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  const newText = editingValue.trim()
+                                  if (!newText) {
+                                    setEditingId(null)
+                                    return
+                                  }
+                                  try {
+                                    const result = await sendMessage.mutateAsync({
+                                      message: newText,
+                                      conversationId: conversationId ?? 'new',
+                                    })
+                                    // Append a new edited turn; keep the original intact
+                                    const editedUser: ChatMessage = {
+                                      id: crypto.randomUUID(),
+                                      role: 'user',
+                                      text: newText,
+                                    }
+                                    const editedAssistant: ChatMessage = {
+                                      id: crypto.randomUUID(),
+                                      role: 'assistant',
+                                      text: result.answer,
+                                      sources: result.sources,
+                                    }
+                                    setMessages(prev => [...prev, editedUser, editedAssistant])
+                                  } catch (err: unknown) {
+                                    const message =
+                                      err instanceof Error
+                                        ? err.message
+                                        : 'Something went wrong. Please try again.'
+                                    toast.error(message)
+                                  } finally {
+                                    setEditingId(null)
+                                  }
+                                }}
+                                className="rounded-md gradient-cta px-3 py-1.5 text-xs text-white"
+                                disabled={sendMessage.isPending}
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingId(null)
+                                  setEditingValue('')
+                                }}
+                                className="rounded-md border border-border px-3 py-1.5 text-xs"
+                                disabled={sendMessage.isPending}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <MessageBubble
+                          message={msg}
+                          canEdit={canEdit}
+                          onEdit={
+                            canEdit
+                              ? () => {
+                                  setEditingId(msg.id)
+                                  setEditingValue(msg.text)
+                                }
+                              : undefined
+                          }
+                        />
+                      )}
+                    </div>
                   )
                 })}
                 {sendMessage.isPending && <TypingIndicator />}
