@@ -69,6 +69,7 @@ service cloud.firestore {
       // Disallow listing the entire users collection from the client
       allow list: if false;
 
+      // Allow serverTimestamp() sentinels by requiring both timestamps be present and equal
       allow create: if isOwner(userId)
         && request.resource.data.uid == userId
         && isValidString(request.resource.data.email, 256)
@@ -76,8 +77,9 @@ service cloud.firestore {
              !('name' in request.resource.data)
              || isValidString(request.resource.data.name, 128)
            )
-        && request.resource.data.createdAt is timestamp
-        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.createdAt != null
+        && request.resource.data.updatedAt != null
+        && request.resource.data.createdAt == request.resource.data.updatedAt
         // Prevent accidental extra fields
         && hasOnlyFields(['uid', 'email', 'name', 'createdAt', 'updatedAt']);
 
@@ -91,7 +93,8 @@ service cloud.firestore {
              !('name' in request.resource.data)
              || isValidString(request.resource.data.name, 128)
            )
-        && request.resource.data.updatedAt is timestamp
+        // updatedAt may be a serverTimestamp() transform; accept presence
+        && request.resource.data.updatedAt != null
         && hasOnlyFields(['uid', 'email', 'name', 'createdAt', 'updatedAt']);
 
       // Hard delete not permitted; account lifecycle managed server-side
@@ -126,10 +129,12 @@ service cloud.firestore {
       // Create is permitted client-side so the frontend can open a conversation
       // before submitting the first query (optimistic UX). The backend validates
       // conversationId ownership before writing messages.
+      // Accept serverTimestamp() transforms for createdAt/updatedAt by checking presence and equality
       allow create: if isOwner(request.resource.data.uid)
         && isValidString(request.resource.data.title, 256)
-        && request.resource.data.createdAt is timestamp
-        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.createdAt != null
+        && request.resource.data.updatedAt != null
+        && request.resource.data.createdAt == request.resource.data.updatedAt
         && request.resource.data.deletedAt == null
         && hasOnlyFields(['uid', 'title', 'createdAt', 'updatedAt', 'deletedAt']);
 
@@ -137,11 +142,13 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.uid)
         && isOwner(request.resource.data.uid)             // uid cannot change
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.updatedAt is timestamp
+        // updatedAt may be a serverTimestamp() transform; accept presence
+        && request.resource.data.updatedAt != null
         && (
              // Branch 1: soft delete (set deletedAt to a timestamp)
              (
-               request.resource.data.deletedAt is timestamp
+               // Accept serverTimestamp() transform for deletedAt
+               request.resource.data.deletedAt != null
                && resource.data.deletedAt == null
                && request.resource.data.title == resource.data.title
              )
@@ -194,7 +201,8 @@ service cloud.firestore {
         // Soft delete only — every other field must remain unchanged
         allow update: if isOwner(resource.data.uid)
           && resource.data.deletedAt == null          // can only delete once
-          && request.resource.data.deletedAt is timestamp
+          // Accept serverTimestamp() transform for deletedAt
+          && request.resource.data.deletedAt != null
           // All immutable fields must be identical
           && request.resource.data.uid            == resource.data.uid
           && request.resource.data.conversationId == resource.data.conversationId

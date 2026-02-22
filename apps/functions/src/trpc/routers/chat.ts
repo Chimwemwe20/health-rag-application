@@ -1,6 +1,8 @@
 import { z } from 'zod'
-import { router, publicProcedure } from '../trpc.js'
+import { router, authedProcedure } from '../trpc.js'
 import { VertexAI, type Tool } from '@google-cloud/vertexai'
+import { db } from '../../lib/firebase.js'
+import { FieldValue } from 'firebase-admin/firestore'
 
 // ─────────────────────────────────────────────────────────────────
 // Config — read from environment (set in Firebase Function config
@@ -59,6 +61,7 @@ const SendMessageInput = z.object({
 })
 
 const SendMessageOutput = z.object({
+  conversationId: z.string(),
   answer: z.string(),
   sources: z.array(z.string()),
 })
@@ -68,11 +71,50 @@ const SendMessageOutput = z.object({
 // ─────────────────────────────────────────────────────────────────
 
 export const chatRouter = router({
-  sendMessage: publicProcedure
+  sendMessage: authedProcedure
     .input(SendMessageInput)
     .output(SendMessageOutput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
+        const uid = ctx.uid as string
+        let conversationId = input.conversationId
+        if (conversationId === 'new') {
+          const ref = db.collection('conversations').doc()
+          conversationId = ref.id
+          const title = input.message.slice(0, 48) || 'New Conversation'
+          await ref.set({
+            uid,
+            title,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            deletedAt: null,
+          })
+        } else {
+          const ref = db.collection('conversations').doc(conversationId)
+          const snap = await ref.get()
+          if (!snap.exists || snap.get('uid') !== uid) {
+            throw new Error('Conversation not found or not owned by user')
+          }
+          await ref.update({ updatedAt: FieldValue.serverTimestamp() })
+        }
+
+        const userMsgRef = db
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc()
+        await userMsgRef.set({
+          uid,
+          conversationId,
+          role: 'user',
+          content: input.message,
+          version: 'v1',
+          parentMessageId: null,
+          citations: [],
+          createdAt: FieldValue.serverTimestamp(),
+          deletedAt: null,
+        })
+
         const result = await model.generateContent({
           tools: [ragTool],
           contents: [
@@ -85,18 +127,15 @@ export const chatRouter = router({
 
         const response = result.response
 
-        // Extract the text answer from the first candidate
         const candidate = response.candidates?.[0]
         const answerText =
           candidate?.content?.parts?.map(p => p.text ?? '').join('') ??
           'I was unable to generate a response. Please try again.'
 
-        // Extract source URIs from grounding metadata if present
         const sources: string[] = []
         const groundingMetadata = candidate?.groundingMetadata
 
         if (groundingMetadata) {
-          // retrievalMetadata is present when RAG returns citations
           const chunks =
             (groundingMetadata.groundingChunks as
               | Array<{ retrievedContext?: { uri?: string } }>
@@ -110,11 +149,25 @@ export const chatRouter = router({
           }
         }
 
-        return { answer: answerText, sources }
+        const assistantMsgRef = db
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc()
+        await assistantMsgRef.set({
+          uid,
+          conversationId,
+          role: 'assistant',
+          content: answerText,
+          version: 'v1',
+          parentMessageId: userMsgRef.id,
+          citations: sources,
+          createdAt: FieldValue.serverTimestamp(),
+          deletedAt: null,
+        })
+
+        return { conversationId, answer: answerText, sources }
       } catch (error: unknown) {
-        // ──────────────────────────────────────────────────────────
-        // IAM debugging: log 403 Permission Denied errors clearly
-        // ──────────────────────────────────────────────────────────
         const isPermissionDenied =
           (error instanceof Error && error.message.includes('403')) ||
           (typeof error === 'object' &&
@@ -134,7 +187,6 @@ export const chatRouter = router({
           console.error('[chat] Unexpected error calling Vertex AI:', error)
         }
 
-        // Re-throw so tRPC returns an Internal Server Error to the client
         throw error
       }
     }),

@@ -22,7 +22,7 @@ import { appRouter } from '../router.js'
 import { createCallerFactory } from '../trpc.js'
 
 const createCaller = createCallerFactory(appRouter)
-const caller = createCaller({})
+const caller = createCaller({ uid: 'test-user' })
 
 // ─────────────────────────────────────────────────────────────────
 // Helpers

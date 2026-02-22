@@ -279,6 +279,9 @@ export function ChatPage() {
         sources: result.sources,
       }
       setMessages(prev => [...prev, assistantMsg])
+      if (!conversationId || conversationId === 'new') {
+        navigate(`/chat/${result.conversationId}`)
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       toast.error(message)

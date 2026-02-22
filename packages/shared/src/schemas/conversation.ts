@@ -24,6 +24,11 @@ export const MessageSchema = z.object({
   deletedAt: z.date().nullable().default(null),
 })
 
+export const CreateConversationSchema = z.object({
+  title: z.string().min(1).max(256),
+})
+
 export type MessageRole = z.infer<typeof MessageRoleSchema>
 export type Conversation = z.infer<typeof ConversationSchema>
 export type Message = z.infer<typeof MessageSchema>
+export type CreateConversation = z.infer<typeof CreateConversationSchema>
