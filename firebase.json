@@ -12,10 +12,16 @@
       "codebase": "default",
       "runtime": "nodejs22",
       "ignore": ["node_modules", ".git", "firebase-debug.log", "firestore-debug.log"],
-      "predeploy": ["pnpm --filter shared build", "pnpm --filter functions build"]
+      "predeploy": [
+        "pnpm --filter shared build",
+        "pnpm --filter functions build",
+        "node apps/functions/scripts/predeploy.mjs"
+      ],
+      "postdeploy": ["node apps/functions/scripts/postdeploy.mjs"]
     }
   ],
   "hosting": {
+    "predeploy": ["pnpm --filter web build"],
     "public": "apps/web/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [

@@ -21,6 +21,7 @@ build
 # ENVIRONMENT & SECRETS
 # =============================================================================
 .env
+.env.production
 .env.local
 .env.development.local
 .env.test.local
@@ -73,6 +74,11 @@ coverage
 .parcel-cache
 .eslintcache
 .stylelintcache
+
+# =============================================================================
+# DEPLOY ARTIFACTS
+# =============================================================================
+*.firebase-backup
 
 # =============================================================================
 # FIREBASE
