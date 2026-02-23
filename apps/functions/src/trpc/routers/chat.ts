@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { router, publicProcedure } from '../trpc.js'
 import { VertexAI, type Tool } from '@google-cloud/vertexai'
+import { FieldValue } from 'firebase-admin/firestore'
+import { db } from '../../lib/firebase.js'
 
 // ─────────────────────────────────────────────────────────────────
 // Config — read from environment (set in Firebase Function config
@@ -56,11 +58,13 @@ const ragTool: Tool = {
 const SendMessageInput = z.object({
   message: z.string().min(1, 'Message cannot be empty'),
   conversationId: z.string(),
+  uid: z.string().min(1),
 })
 
 const SendMessageOutput = z.object({
   answer: z.string(),
   sources: z.array(z.string()),
+  conversationId: z.string(),
 })
 
 // ─────────────────────────────────────────────────────────────────
@@ -73,6 +77,33 @@ export const chatRouter = router({
     .output(SendMessageOutput)
     .mutation(async ({ input }) => {
       try {
+        // ── 1. Resolve or create the conversation ──────────────────
+        let convId = input.conversationId
+        if (convId === 'new') {
+          const convRef = db.collection('conversations').doc()
+          convId = convRef.id
+          await convRef.set({
+            uid: input.uid,
+            title: input.message.slice(0, 60),
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            deletedAt: null,
+          })
+        }
+
+        // ── 2. Persist the user message ────────────────────────────
+        await db.collection('conversations').doc(convId).collection('messages').doc().set({
+          uid: input.uid,
+          conversationId: convId,
+          role: 'user',
+          content: input.message,
+          version: 'v1',
+          citations: [],
+          createdAt: FieldValue.serverTimestamp(),
+          deletedAt: null,
+        })
+
+        // ── 3. Call Vertex AI ──────────────────────────────────────
         const result = await model.generateContent({
           tools: [ragTool],
           contents: [
@@ -96,7 +127,6 @@ export const chatRouter = router({
         const groundingMetadata = candidate?.groundingMetadata
 
         if (groundingMetadata) {
-          // retrievalMetadata is present when RAG returns citations
           const chunks =
             (groundingMetadata.groundingChunks as
               | Array<{ retrievedContext?: { uri?: string } }>
@@ -110,7 +140,24 @@ export const chatRouter = router({
           }
         }
 
-        return { answer: answerText, sources }
+        // ── 4. Persist the assistant message ───────────────────────
+        await db.collection('conversations').doc(convId).collection('messages').doc().set({
+          uid: input.uid,
+          conversationId: convId,
+          role: 'assistant',
+          content: answerText,
+          version: 'v1',
+          citations: sources,
+          createdAt: FieldValue.serverTimestamp(),
+          deletedAt: null,
+        })
+
+        // ── 5. Bump conversation updatedAt ─────────────────────────
+        await db.collection('conversations').doc(convId).update({
+          updatedAt: FieldValue.serverTimestamp(),
+        })
+
+        return { answer: answerText, sources, conversationId: convId }
       } catch (error: unknown) {
         // ──────────────────────────────────────────────────────────
         // IAM debugging: log 403 Permission Denied errors clearly

@@ -50,8 +50,7 @@ jobs:
     # ========================================================================
     environment:
       name: dev
-      # TODO: Update with your dev URL
-      url: https://dev.example.com
+      url: https://health-lifeline-53fb3.web.app
 
     steps:
       - name: Checkout repository
@@ -74,8 +73,7 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          # TODO: Update with your dev API URL
-          VITE_API_URL: https://dev-api.example.com
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -90,12 +88,12 @@ jobs:
       # Deploy to Firebase
       # Authenticates using FIREBASE_TOKEN — no GCP IAM setup needed.
       # ======================================================================
-      - name: Deploy to Firebase Hosting
+      - name: Deploy Firestore rules and indexes
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          firebase deploy --only hosting \
+          firebase deploy --only firestore \
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
             --non-interactive
@@ -109,7 +107,17 @@ jobs:
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
             --non-interactive
-        continue-on-error: true # Skip if no functions configured
+        continue-on-error: true
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy --only hosting \
+            --project "$FIREBASE_PROJECT_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive
 
       - name: Deployment Summary
         run: |

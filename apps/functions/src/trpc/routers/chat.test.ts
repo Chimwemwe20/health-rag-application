@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const hoisted = vi.hoisted(() => ({
   mockGenerateContent: vi.fn(),
+  mockSet: vi.fn().mockResolvedValue(undefined),
+  mockUpdate: vi.fn().mockResolvedValue(undefined),
 }))
 const mockGenerateContent = hoisted.mockGenerateContent
 
@@ -17,7 +19,31 @@ vi.mock('@google-cloud/vertexai', () => ({
   })),
 }))
 
-// Import router AFTER the mock is set up
+// Mock firebase-admin so Firestore writes are no-ops in tests
+vi.mock('firebase-admin/app', () => ({ initializeApp: vi.fn() }))
+vi.mock('firebase-admin/auth', () => ({ getAuth: vi.fn() }))
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: vi.fn(),
+  FieldValue: { serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP') },
+}))
+vi.mock('../../lib/firebase.js', () => ({
+  auth: {},
+  db: {
+    collection: vi.fn().mockReturnValue({
+      doc: vi.fn().mockReturnValue({
+        set: hoisted.mockSet,
+        update: hoisted.mockUpdate,
+        collection: vi.fn().mockReturnValue({
+          doc: vi.fn().mockReturnValue({
+            set: hoisted.mockSet,
+          }),
+        }),
+      }),
+    }),
+  },
+}))
+
+// Import router AFTER the mocks are set up
 import { appRouter } from '../router.js'
 import { createCallerFactory } from '../trpc.js'
 
@@ -67,10 +93,12 @@ describe('chatRouter', () => {
       const result = await caller.chat.sendMessage({
         message: 'What are the warning signs of hypoglycemia?',
         conversationId: 'test-conv-1',
+        uid: 'test-uid',
       })
 
       expect(result.answer).toContain('Hypoglycemia')
       expect(result.sources).toEqual([fakeSourceUri])
+      expect(result.conversationId).toBe('test-conv-1')
     })
 
     it('returns empty sources array when no grounding metadata present', async () => {
@@ -79,6 +107,7 @@ describe('chatRouter', () => {
       const result = await caller.chat.sendMessage({
         message: 'General health advice?',
         conversationId: 'test-conv-2',
+        uid: 'test-uid',
       })
 
       expect(result.answer).toBe('Always consult a doctor.')
@@ -93,6 +122,7 @@ describe('chatRouter', () => {
         caller.chat.sendMessage({
           message: 'Will this fail?',
           conversationId: 'test-conv-3',
+          uid: 'test-uid',
         })
       ).rejects.toThrow()
     })
@@ -104,6 +134,7 @@ describe('chatRouter', () => {
         caller.chat.sendMessage({
           message: 'Will this also fail?',
           conversationId: 'test-conv-4',
+          uid: 'test-uid',
         })
       ).rejects.toThrow()
     })

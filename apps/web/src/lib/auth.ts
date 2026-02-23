@@ -98,6 +98,9 @@ export async function signOut(): Promise<void> {
 
 export async function updateUserProfile(user: User, name: string): Promise<void> {
   await updateProfile(user, { displayName: name })
+  // Reload forces Firebase to push the updated user through onAuthStateChanged
+  // so the sidebar display name updates without requiring a page refresh.
+  await user.reload()
   const ref = doc(db, 'users', user.uid)
   await setDoc(ref, { name, updatedAt: serverTimestamp() }, { merge: true })
 }

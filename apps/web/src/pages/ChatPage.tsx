@@ -21,18 +21,9 @@ import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/auth'
 import { toast } from '@repo/ui/Toast'
 import { useSendMessage } from '../hooks/useChat'
-import type { Conversation } from '../types/chat'
-
-// ─────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  text: string
-  sources?: string[]
-}
+import { useConversations } from '../hooks/useConversations'
+import { useMessages } from '../hooks/useMessages'
+import type { ChatMessage } from '../types/chat'
 
 // ─────────────────────────────────────────────────────────────────
 // Suggested prompts shown in empty state
@@ -228,18 +219,26 @@ export function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  // Optimistic user bubble shown while waiting for the backend response
+  const [pendingText, setPendingText] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const sendMessage = useSendMessage()
+  const conversations = useConversations(user?.uid ?? null)
 
-  // Scroll to bottom whenever messages change
+  // Firestore is the source of truth — messages reload automatically when
+  // conversationId changes (e.g. user clicks a history item in the sidebar)
+  const firestoreMessages = useMessages(conversationId ?? null, user?.uid ?? null)
+
+  // While the backend is processing, show the optimistic user bubble on top
+  const displayMessages: ChatMessage[] = pendingText
+    ? [...firestoreMessages, { id: 'pending', role: 'user', text: pendingText }]
+    : firestoreMessages
+
+  // Scroll to bottom whenever messages or the typing indicator change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, sendMessage.isPending])
-
-  // TODO: replace with a useConversations() hook once Firestore chat is wired up
-  const conversations: Conversation[] = []
+  }, [displayMessages, sendMessage.isPending])
 
   const activeConv = conversations.find(c => c.id === conversationId)
 
@@ -257,29 +256,26 @@ export function ChatPage() {
     const text = inputValue.trim()
     if (!text || sendMessage.isPending) return
 
-    // Optimistically add the user message
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      text,
-    }
-    setMessages(prev => [...prev, userMsg])
     setInputValue('')
+    setPendingText(text)
 
     try {
       const result = await sendMessage.mutateAsync({
         message: text,
         conversationId: conversationId ?? 'new',
+        uid: user!.uid,
       })
 
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        text: result.answer,
-        sources: result.sources,
+      // Firestore onSnapshot will deliver both messages automatically.
+      // Clear the optimistic bubble now that the real messages are on their way.
+      setPendingText(null)
+
+      // If this was a new conversation, update the URL to the real conversation ID
+      if (!conversationId) {
+        navigate(`/chat/${result.conversationId}`, { replace: true })
       }
-      setMessages(prev => [...prev, assistantMsg])
     } catch (err: unknown) {
+      setPendingText(null)
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
       toast.error(message)
     }
@@ -334,12 +330,12 @@ export function ChatPage() {
 
         {/* Body */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {messages.length === 0 ? (
+          {displayMessages.length === 0 ? (
             <EmptyState onPromptClick={text => setInputValue(text)} />
           ) : (
             <div className="flex-1 overflow-y-auto px-4 py-6">
               <div className="mx-auto flex max-w-3xl flex-col gap-6">
-                {messages.map(msg => (
+                {displayMessages.map(msg => (
                   <MessageBubble key={msg.id} message={msg} />
                 ))}
                 {sendMessage.isPending && <TypingIndicator />}
