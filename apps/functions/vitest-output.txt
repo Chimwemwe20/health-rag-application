@@ -1,0 +1,136 @@
+﻿
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Projects/health-rag-application-1/apps/functions[39m
+
+ [31mΓ¥»[39m src/trpc/routers/chat.test.ts [2m([22m[2m0 test[22m[2m)[22m
+ [31mΓ¥»[39m src/trpc/routers/user.test.ts [2m([22m[2m0 test[22m[2m)[22m
+
+node.exe : [31mΓÄ»Γ
+Ä»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1m[
+7m Failed Suites 2 
+[27m[22mΓÄ»ΓÄ»ΓÄ»ΓÄ
+»ΓÄ»ΓÄ»ΓÄ»[39m
+At line:1 char:1
++ & "C:\Program File
+s\nodejs/node.exe" 
+"C:\Users\CC 
+User\AppData\Roamin 
+...
++ ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: ([31   
+ mΓÄ»ΓÄ»ΓÄ»Γ...»    
+ΓÄ»ΓÄ»ΓÄ»[39m:    
+String) [], Rem    
+oteException
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+
+[31m[1m[7m FAIL 
+[27m[22m[39m src/
+trpc/routers/chat.te
+st.ts[2m [ src/trpc
+/routers/chat.test.t
+s ][22m
+[31m[1m[7m FAIL 
+[27m[22m[39m src/
+trpc/routers/user.te
+st.ts[2m [ src/trpc
+/routers/user.test.t
+s ][22m
+[31m[1mError[22m:
+ Failed to resolve 
+entry for package 
+"@repo/shared". The 
+package may have 
+incorrect 
+main/module/exports 
+specified in its 
+package.json.[39m
+  Plugin: [35mvite:
+import-analysis[39m
+  File: [36mC:/Proj
+ects/health-rag-appl
+ication-1/apps/funct
+ions/src/trpc/router
+s/user.ts[39m
+[90m [2mΓ¥»[22m 
+packageEntryFailure 
+../../node_modules/.
+pnpm/vite@5.1.4/node
+_modules/vite/dist/n
+ode/chunks/dep-jDlpJ
+iMN.js:[2m48038:17
+[22m[39m
+[90m [2mΓ¥»[22m 
+resolvePackageEntry 
+../../node_modules/.
+pnpm/vite@5.1.4/node
+_modules/vite/dist/n
+ode/chunks/dep-jDlpJ
+iMN.js:[2m48035:5[
+22m[39m
+[90m [2mΓ¥»[22m 
+tryNodeResolve ../..
+/node_modules/.pnpm/
+vite@5.1.4/node_modu
+les/vite/dist/node/c
+hunks/dep-jDlpJiMN.j
+s:[2m47805:20[22m
+[39m
+[90m [2mΓ¥»[22m 
+Context.resolveId ..
+/../node_modules/.pn
+pm/vite@5.1.4/node_m
+odules/vite/dist/nod
+e/chunks/dep-jDlpJiM
+N.js:[2m47568:28[2
+2m[39m
+[90m [2mΓ¥»[22m 
+Object.resolveId ../
+../node_modules/.pnp
+m/vite@5.1.4/node_mo
+dules/vite/dist/node
+/chunks/dep-jDlpJiMN
+.js:[2m50762:64[22
+m[39m
+[90m [2mΓ¥»[22m T
+ransformContext.reso
+lve ../../node_modul
+es/.pnpm/vite@5.1.4/
+node_modules/vite/di
+st/node/chunks/dep-j
+DlpJiMN.js:[2m50453
+:23[22m[39m
+[90m [2mΓ¥»[22m 
+normalizeUrl ../../n
+ode_modules/.pnpm/vi
+te@5.1.4/node_module
+s/vite/dist/node/chu
+nks/dep-jDlpJiMN.js:
+[2m65586:34[22m[3
+9m
+[90m [2mΓ¥»[22m .
+./../node_modules/.p
+npm/vite@5.1.4/node_
+modules/vite/dist/no
+de/chunks/dep-jDlpJi
+MN.js:[2m65749:47[
+22m[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ
+»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»Γ
+Ä»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ
+»[1/2]ΓÄ»[22m[39m
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[90m (2)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 12:49:06
+[2m   Duration [22m 880ms[2m (transform 170ms, setup 0ms, collect 0ms, tests 0ms, environment 1ms, prepare 645ms)[22m
+
