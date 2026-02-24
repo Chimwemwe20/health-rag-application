@@ -13,6 +13,7 @@ import {
   Robot,
   User,
   Link,
+  PencilSimple,
 } from '@phosphor-icons/react'
 import { Sidebar } from '../components/Sidebar'
 import { SettingsPanel } from '../components/SettingsPanel'
@@ -22,6 +23,7 @@ import { signOut } from '../lib/auth'
 import { toast } from '@repo/ui/Toast'
 import { useSendMessage } from '../hooks/useChat'
 import { useConversations } from '../hooks/useConversations'
+import { useConversationActions } from '../hooks/useConversationActions'
 import { useMessages } from '../hooks/useMessages'
 import type { ChatMessage } from '../types/chat'
 
@@ -77,11 +79,17 @@ function EmptyState({ onPromptClick }: { onPromptClick: (text: string) => void }
 // Chat message bubble
 // ─────────────────────────────────────────────────────────────────
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({
+  message,
+  onEdit,
+}: {
+  message: ChatMessage
+  onEdit?: (text: string) => void
+}) {
   const isUser = message.role === 'user'
 
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`group flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {/* Avatar */}
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
@@ -104,6 +112,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         >
           {message.text}
         </div>
+
+        {/* Edit button — user messages only */}
+        {isUser && onEdit && (
+          <button
+            onClick={() => onEdit(message.text)}
+            aria-label="Edit message"
+            className="flex items-center gap-1 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+          >
+            <PencilSimple size={10} />
+            Edit
+          </button>
+        )}
 
         {/* Sources */}
         {!isUser && message.sources && message.sources.length > 0 && (
@@ -225,6 +245,7 @@ export function ChatPage() {
 
   const sendMessage = useSendMessage()
   const conversations = useConversations(user?.uid ?? null)
+  const { renameConversation, deleteConversation } = useConversationActions()
 
   // Firestore is the source of truth — messages reload automatically when
   // conversationId changes (e.g. user clicks a history item in the sidebar)
@@ -250,6 +271,15 @@ export function ChatPage() {
       // ignore
     }
     navigate('/')
+  }
+
+  async function handleRenameConv(id: string, title: string) {
+    await renameConversation(id, title)
+  }
+
+  async function handleDeleteConv(id: string) {
+    await deleteConversation(id)
+    if (conversationId === id) navigate('/new-chat', { replace: true })
   }
 
   async function handleSend() {
@@ -294,6 +324,8 @@ export function ChatPage() {
         onNewChat={() => navigate('/new-chat')}
         onSignOut={handleSignOut}
         onOpenSettings={() => setSettingsOpen(true)}
+        onRenameConv={handleRenameConv}
+        onDeleteConv={handleDeleteConv}
         user={user}
       />
 
@@ -336,7 +368,11 @@ export function ChatPage() {
             <div className="flex-1 overflow-y-auto px-4 py-6">
               <div className="mx-auto flex max-w-3xl flex-col gap-6">
                 {displayMessages.map(msg => (
-                  <MessageBubble key={msg.id} message={msg} />
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    onEdit={msg.role === 'user' ? text => setInputValue(text) : undefined}
+                  />
                 ))}
                 {sendMessage.isPending && <TypingIndicator />}
                 <div ref={bottomRef} />
