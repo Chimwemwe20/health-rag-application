@@ -1,323 +1,361 @@
-# The Hytel Way: Monorepo Stack
+# Health RAG Application
 
-A production-ready monorepo template featuring React, TypeScript, Tailwind CSS, Shadcn UI, tRPC, and TanStack Query. Built with pnpm and Turborepo for optimal developer experience.
+A conversational health information assistant for Zambia, powered by **Gemini 2.5 Flash** and **Vertex AI RAG**. Users can ask health questions (e.g. diabetes management, medication guidance) and receive grounded answers with source citations, backed by a curated medical document corpus.
 
-## Stack Overview
+---
 
-Think of building a web app like putting on a theater production!
+## Architecture Overview
 
-| Tool               | Role            | Analogy                                        |
-| ------------------ | --------------- | ---------------------------------------------- |
-| **pnpm**           | Package Manager | The super-organized prop master                |
-| **Turborepo**      | Build System    | The stage manager coordinating tasks           |
-| **React + Vite**   | Frontend        | The stage and lighting system                  |
-| **TypeScript**     | Type Safety     | The script ensuring everyone knows their lines |
-| **Tailwind CSS**   | Styling         | The costume designer's fabric swatches         |
-| **Shadcn UI**      | Components      | Pre-made costume patterns                      |
-| **tRPC**           | API Layer       | The messenger between actors                   |
-| **TanStack Query** | Data Fetching   | Smart caching (remembers the script!)          |
-| **Vitest**         | Testing         | Dress rehearsals before the show               |
-| **Zod**            | Validation      | The bouncer checking IDs                       |
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        User Browser                          │
+│              React + Vite SPA (Firebase Hosting)            │
+└────────────────────────┬────────────────────────────────────┘
+                         │ tRPC (HTTPS)
+┌────────────────────────▼────────────────────────────────────┐
+│                  Firebase Cloud Functions                     │
+│              Node.js 22 · tRPC API · europe-west2            │
+│                                                              │
+│  ┌──────────────┐    ┌────────────────────────────────────┐ │
+│  │  chat router │───▶│  Vertex AI (Gemini 2.5 Flash)      │ │
+│  │  user router │    │  + RAG Corpus (top-5 retrieval)    │ │
+│  └──────────────┘    └────────────────────────────────────┘ │
+│          │                                                   │
+│  ┌───────▼───────┐                                          │
+│  │   Firestore   │  conversations / messages                │
+│  └───────────────┘                                          │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   Python Data Pipeline                       │
+│  chunking.py · embeddings.py · gcs_utils.py · firestore_    │
+│  utils.py  →  Vertex AI RAG Corpus (text-embedding-004)     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Monorepo Structure
 
 ```
-├── .github/
-│   ├── workflows/        # CI/CD pipelines (ready to use!)
-│   ├── CODEOWNERS        # Auto-assign reviewers
-│   └── ISSUE_TEMPLATE/   # Issue & PR templates
-│
+health-rag-application/
 ├── apps/
-│   ├── web/              # React frontend (Vite + Tailwind)
-│   │   ├── src/
-│   │   │   ├── App.tsx   # Main application component
-│   │   │   ├── hooks/    # Custom React hooks
-│   │   │   ├── lib/      # Utilities (tRPC client, query client)
-│   │   │   └── providers/# Context providers
-│   │   └── public/       # Static assets
+│   ├── web/                  # React 18 frontend (Vite)
+│   │   └── src/
+│   │       ├── App.tsx       # Routes: /, /authentication, /new-chat, /chat/:id
+│   │       ├── pages/        # ChatPage, AuthPage, LandingPage
+│   │       ├── components/   # Sidebar, SettingsPanel, ChatPage
+│   │       ├── hooks/        # useAuth, useChat, useConversations, useMessages…
+│   │       ├── lib/          # Firebase, tRPC & query client setup
+│   │       └── providers/    # AuthProvider, QueryProvider
 │   │
-│   └── functions/        # tRPC backend
-│       └── src/trpc/     # API routers and procedures
+│   └── functions/            # Firebase Cloud Functions (Node.js 22)
+│       └── src/
+│           ├── index.ts      # HTTP function entry, CORS, tRPC adapter
+│           ├── trpc/
+│           │   ├── router.ts # Root router
+│           │   ├── chat.ts   # sendMessage → Vertex AI RAG → Firestore
+│           │   └── user.ts   # User CRUD
+│           └── lib/
+│               └── firebase.ts # Admin SDK init
 │
 ├── packages/
-│   ├── ui/               # Shared React components
-│   │   ├── components/
-│   │   │   ├── Header.tsx
-│   │   │   ├── Counter.tsx
-│   │   │   └── ui/       # Shadcn UI components (Button, Card)
-│   │   └── lib/utils.ts  # Tailwind class merging utility
-│   │
-│   ├── shared/           # Shared Zod schemas & types
-│   │   └── src/schemas/  # User schemas, validation rules
-│   │
-│   ├── eslint-config/    # Shared ESLint configuration
-│   └── typescript-config/# Shared TypeScript configuration
+│   ├── ui/                   # Shared React components (Shadcn UI)
+│   ├── shared/               # Zod schemas: user, auth, conversation, message
+│   ├── eslint-config/        # Shared ESLint rules
+│   └── typescript-config/    # Shared tsconfig base
 │
-├── docs/ci-cd/           # CI/CD documentation
-├── scripts/              # Setup scripts (WIF, etc.)
-├── turbo.json            # Turborepo pipeline configuration
-├── pnpm-workspace.yaml   # Workspace definition
-└── package.json          # Root scripts
+├── chunking.py               # Document chunking (500-token, overlap)
+├── embeddings.py             # Vertex AI embedding generation (768-dim)
+├── firestore_utils.py        # Batch writes to Firestore
+├── gcs_utils.py              # Google Cloud Storage helpers
+│
+├── firebase.json             # Firebase project config (Firestore, Functions, Hosting)
+├── firestore.rules           # Firestore security rules
+├── firestore.indexes.json    # Composite index definitions
+├── .firebaserc               # Firebase project alias (health-lifeline-53fb3)
+├── turbo.json                # Turborepo pipeline config
+├── pnpm-workspace.yaml       # pnpm workspaces
+└── package.json              # Root scripts
 ```
 
-## Quick Start
+---
 
-### Prerequisites
+## Tech Stack
+
+### Frontend
+
+| Technology     | Version | Role                    |
+| -------------- | ------- | ----------------------- |
+| React          | 18.3    | UI framework            |
+| Vite           | 5.1     | Build tool & dev server |
+| React Router   | 7.13    | Client-side routing     |
+| TypeScript     | 5.7     | Type safety             |
+| Tailwind CSS   | 3.4     | Styling                 |
+| Shadcn UI      | —       | Component library       |
+| TanStack Query | 5.62    | Data fetching & caching |
+| tRPC           | 11.0    | Type-safe API client    |
+| Firebase SDK   | 12.9    | Auth + Firestore client |
+| Phosphor Icons | 2.1     | Icons                   |
+
+### Backend
+
+| Technology         | Version  | Role                   |
+| ------------------ | -------- | ---------------------- |
+| Node.js            | 22       | Runtime                |
+| Firebase Functions | 7.0 (v2) | Serverless API         |
+| tRPC               | 11.0     | RPC framework          |
+| Firebase Admin SDK | 13.6     | Firestore + Auth admin |
+| Vertex AI SDK      | 1.10     | Gemini 2.5 Flash + RAG |
+| Zod                | 3.23     | Input validation       |
+
+### Cloud Services (GCP / Firebase)
+
+| Service          | Purpose                   | Region       |
+| ---------------- | ------------------------- | ------------ |
+| Firebase Hosting | React SPA CDN             | Global       |
+| Firebase Auth    | Email/password auth       | Global       |
+| Cloud Functions  | Backend API               | europe-west2 |
+| Firestore        | Chat persistence          | europe-west2 |
+| Vertex AI        | Gemini 2.5 Flash LLM      | europe-west2 |
+| Vertex AI RAG    | Document corpus retrieval | europe-west2 |
+| Cloud Storage    | Source document storage   | —            |
+
+### Build & DevOps
+
+| Tool                         | Purpose                           |
+| ---------------------------- | --------------------------------- |
+| pnpm 8                       | Package manager                   |
+| Turborepo 2                  | Monorepo build orchestration      |
+| GitHub Actions               | CI/CD pipelines                   |
+| Workload Identity Federation | Keyless GCP auth (no stored keys) |
+| Husky + lint-staged          | Pre-commit lint & format          |
+| Changesets                   | Semantic versioning               |
+
+---
+
+## Prerequisites
 
 - Node.js 20+
 - pnpm 8+
+- Firebase CLI 13+
+- A GCP project with Vertex AI API enabled
+- A Vertex AI RAG corpus (see [RAG Pipeline](#rag-pipeline))
 
-### Installation
+---
+
+## Environment Variables
+
+Copy `.env.example` and fill in your values:
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd hytel-react-boilerplate
+cp .env.example apps/web/.env
+cp .env.example apps/functions/.env
+```
 
+### Frontend (`VITE_` prefix required)
+
+```env
+VITE_API_URL=http://localhost:5002/<your-project-id>/europe-west2/api
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=<project>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=<project>.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_REGION=europe-west2
+VITE_FUNCTIONS_PORT=5002
+```
+
+### Backend
+
+```env
+GOOGLE_CLOUD_PROJECT=<your-project-id>
+GOOGLE_CLOUD_LOCATION=europe-west2
+RAG_CORPUS_ID=<your-corpus-id>
+```
+
+---
+
+## Quick Start
+
+```bash
 # Install dependencies
-pnpm install
-```
+NODE_ENV=development pnpm install
 
-### Development
-
-```bash
-# Start the development server
+# Start frontend + Firebase emulators
 pnpm dev
-# Opens at http://localhost:5173
-
-# Run all quality checks
-pnpm precheck
-
-# Run tests
-pnpm test
-
-# Build for production
-pnpm build
-
-# Lint code
-pnpm lint
-
-# Format code
-pnpm format
+# Frontend: http://localhost:5173
+# Functions emulator: http://localhost:5002
 ```
 
-## Key Features
+> **Note:** `NODE_ENV` must be set to `development` when installing — this environment defaults to `production`, which causes pnpm to skip devDependencies.
 
-### Shared Components (`packages/ui`)
-
-Components in `@repo/ui` can be used by any app in the monorepo:
-
-```tsx
-import { Header } from '@repo/ui/Header'
-import { Button } from '@repo/ui/Button'
-import { Card, CardHeader, CardContent } from '@repo/ui/Card'
-```
-
-### Type-Safe API (`apps/functions`)
-
-tRPC provides end-to-end type safety:
-
-```tsx
-// Backend (apps/functions)
-export const userRouter = router({
-  create: publicProcedure
-    .input(CreateUserSchema)
-    .mutation(({ input }) => ({ id: 'new-id', ...input })),
-})
-
-// Frontend (apps/web)
-const { mutate } = trpc.user.create.useMutation()
-```
-
-### Shared Schemas (`packages/shared`)
-
-Zod schemas shared between frontend and backend:
-
-```tsx
-import { UserSchema, CreateUserSchema } from '@repo/shared'
-
-// Type-safe validation everywhere!
-const user = UserSchema.parse(data)
-```
+---
 
 ## Scripts Reference
 
-| Command              | Description                                   |
-| -------------------- | --------------------------------------------- |
-| `pnpm dev`           | Start development servers                     |
-| `pnpm build`         | Build all packages for production             |
-| `pnpm test`          | Run all tests                                 |
-| `pnpm test:coverage` | Run tests with coverage report                |
-| `pnpm lint`          | Lint all packages                             |
-| `pnpm lint:fix`      | Auto-fix lint issues                          |
-| `pnpm format`        | Format code with Prettier                     |
-| `pnpm format:check`  | Check code formatting                         |
-| `pnpm typecheck`     | Run TypeScript type checking                  |
-| `pnpm precheck`      | Run all checks (lint, typecheck, build, test) |
-| `pnpm changeset`     | Create a changeset for versioning             |
-| `pnpm sync:lint`     | Check dependency version consistency          |
-| `pnpm sync:fix`      | Fix dependency version mismatches             |
+| Command              | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `pnpm dev`           | Start all dev servers                                |
+| `pnpm build`         | Build all packages for production                    |
+| `pnpm test`          | Run all tests                                        |
+| `pnpm test:coverage` | Run tests with coverage                              |
+| `pnpm lint`          | Lint all packages                                    |
+| `pnpm lint:fix`      | Auto-fix lint issues                                 |
+| `pnpm format`        | Format code with Prettier                            |
+| `pnpm typecheck`     | TypeScript type checking                             |
+| `pnpm precheck`      | Full quality suite (lint + typecheck + build + test) |
+
+Run a command for a single package:
+
+```bash
+pnpm --filter web dev
+pnpm --filter functions build
+```
 
 ---
 
-## CI/CD Pipeline
+## RAG Pipeline
 
-This template includes a **fully configured CI/CD pipeline** using GitHub Actions and Workload Identity Federation (WIF) for secure deployments.
+Documents are indexed offline using the Python scripts in the project root before users ever send a message.
+
+```
+Source Documents (PDF/text)
+        │
+        ▼
+  gcs_utils.py        → Upload raw files to Cloud Storage
+        │
+        ▼
+  chunking.py         → Split into 500-token chunks with overlap
+        │
+        ▼
+  embeddings.py       → Generate 768-dim vectors via text-embedding-004
+        │
+        ▼
+  firestore_utils.py  → Store chunks + metadata in Firestore
+        │
+        ▼
+  Vertex AI RAG API   → Import corpus for retrieval-augmented generation
+```
+
+At query time:
+
+1. User sends a message via the React chat UI.
+2. The Firebase Function receives it via tRPC `chat.sendMessage`.
+3. Vertex AI retrieves the **top-5 most relevant chunks** from the corpus.
+4. Gemini 2.5 Flash generates an answer grounded in those chunks.
+5. Source URIs from grounding metadata are returned alongside the answer.
+6. Both the user message and assistant response are persisted to Firestore.
+
+---
+
+## Data Model
+
+### `conversations/{convId}`
+
+```
+uid:       string       # Owner's Firebase UID
+title:     string       # Auto-set from the first user message
+createdAt: timestamp
+updatedAt: timestamp
+deletedAt: timestamp | null   # Soft delete
+```
+
+### `conversations/{convId}/messages/{msgId}`
+
+```
+uid:             string
+conversationId:  string
+role:            'user' | 'assistant'
+content:         string        # ≤ 10,000 chars
+citations:       string[]      # Source URIs (assistant messages only)
+version:         string
+createdAt:       timestamp
+deletedAt:       timestamp | null
+```
+
+---
+
+## Deployment
+
+Deployments use GitHub Actions with **Workload Identity Federation** — no service account keys stored in GitHub.
 
 ### Branch Strategy
 
-| Branch  | Environment | Deployment                 |
-| ------- | ----------- | -------------------------- |
-| `dev`   | Development | Auto on push               |
-| `stage` | Staging     | Auto on push               |
-| `main`  | Production  | Manual (with confirmation) |
+| Branch  | Environment | Trigger |
+| ------- | ----------- | ------- |
+| `dev`   | Development | Push    |
+| `stage` | Staging     | Push    |
+| `main`  | Production  | Manual  |
+
+### Deploy Manually
+
+```bash
+# Build functions
+NODE_ENV=development pnpm --filter functions build
+
+# Deploy everything
+firebase deploy
+
+# Deploy only functions
+firebase deploy --only functions
+
+# Deploy only hosting
+firebase deploy --only hosting
+```
 
 ### GitHub Actions Workflows
 
-| Workflow                | Trigger         | Purpose                              |
-| ----------------------- | --------------- | ------------------------------------ |
-| `ci.yml`                | PR & push       | Lint, typecheck, build, test         |
-| `deploy-dev.yml`        | Push to `dev`   | Deploy to development                |
-| `deploy-stage.yml`      | Push to `stage` | Deploy to staging                    |
-| `deploy-main.yml`       | Manual          | Deploy to production                 |
-| `release.yml`           | Push to `main`  | Automated versioning with Changesets |
-| `dependency-review.yml` | PR              | Check for vulnerable dependencies    |
-
-### Workload Identity Federation (WIF)
-
-All deployments use **keyless authentication** with GCP:
-
-- No stored service account keys
-- Short-lived tokens (expire in ~1 hour)
-- Full audit trail in GCP
+| Workflow                | Trigger         | Purpose                           |
+| ----------------------- | --------------- | --------------------------------- |
+| `ci.yml`                | PR + push       | Lint, typecheck, build, test      |
+| `deploy-dev.yml`        | Push to `dev`   | Deploy to development             |
+| `deploy-stage.yml`      | Push to `stage` | Deploy to staging                 |
+| `deploy-main.yml`       | Manual          | Deploy to production              |
+| `release.yml`           | Push to `main`  | Automated versioning (Changesets) |
+| `dependency-review.yml` | PR              | Scan for vulnerable dependencies  |
 
 ### Required GitHub Secrets
 
-Configure these in your repository settings:
+| Secret                           | Description                     |
+| -------------------------------- | ------------------------------- |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | WIF provider resource path      |
+| `GCP_SA_EMAIL`                   | Deploying service account email |
 
-| Secret                           | Description           |
-| -------------------------------- | --------------------- |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | WIF provider path     |
-| `GCP_SA_EMAIL`                   | Service account email |
-
-### Setup Instructions
-
-1. **Configure WIF** using `scripts/setup-wif.sh`
-2. **Add secrets** to GitHub repository settings
-3. **Create environments** (`dev`, `stage`, `main`) in GitHub settings
-4. **Push to branches** to trigger deployments
-
-See [docs/ci-cd/CI-CD-Pipeline-Guide.md](docs/ci-cd/CI-CD-Pipeline-Guide.md) for detailed setup instructions.
+Setup: run `scripts/setup-wif.sh` and add the outputs as GitHub secrets.
 
 ---
 
-## Development Tools
+## Security
 
-### Git Hooks (Husky)
-
-Pre-commit hooks automatically run:
-
-- ESLint on staged `.ts`/`.tsx` files
-- Prettier on staged files
-
-### Changesets
-
-Semantic versioning for the monorepo:
-
-```bash
-# Create a changeset when you make changes
-pnpm changeset
-
-# The release workflow handles version bumps automatically
-```
-
-### Syncpack
-
-Dependency consistency across packages:
-
-```bash
-pnpm sync:lint   # Check for mismatches
-pnpm sync:fix    # Auto-fix mismatches
-pnpm sync:list   # List all versions
-```
-
----
-
-## Testing
-
-Each package has its own tests:
-
-```bash
-# Run all tests
-pnpm test
-
-# Run tests for specific package
-pnpm --filter web test
-pnpm --filter @repo/ui test
-pnpm --filter @repo/shared test
-pnpm --filter @repo/functions test
-
-# Run with coverage
-pnpm test:coverage
-```
-
----
-
-## Adding New Packages
-
-### New App
-
-```bash
-mkdir apps/new-app
-cd apps/new-app
-pnpm init
-```
-
-### New Shared Package
-
-```bash
-mkdir packages/new-package
-cd packages/new-package
-pnpm init
-```
-
-Packages are auto-discovered via `pnpm-workspace.yaml` (configured for `apps/*` and `packages/*`).
+- **Firestore rules** enforce UID-based ownership — users can only read/write their own conversations and messages.
+- **Soft deletes only** — no hard deletes from the client; data lifecycle is managed server-side.
+- **Admin-only collections** (`health_chunks`, `query_logs`, `abstention_logs`, `rate_limits`) — no client access.
+- **CORS** is handled inline in the Cloud Function (not via the `cors` npm package, which has reliability issues in the Firebase v2 / ESM context).
+- **Password policy** — minimum 8 characters, one uppercase letter, one number (enforced via Zod on both client and server).
 
 ---
 
 ## Version Requirements
 
-| Tool         | Minimum Version        |
-| ------------ | ---------------------- |
-| Node.js      | 20.x                   |
-| pnpm         | 8.x                    |
-| Turbo        | 2.x                    |
-| TypeScript   | 5.x                    |
-| Vitest       | 2.x                    |
-| ESLint       | 8.x                    |
-| Prettier     | 3.x                    |
-| Firebase CLI | 13.x (for deployment)  |
-| gcloud CLI   | Latest (for WIF setup) |
+| Tool         | Minimum |
+| ------------ | ------- |
+| Node.js      | 20.x    |
+| pnpm         | 8.x     |
+| Turborepo    | 2.x     |
+| TypeScript   | 5.x     |
+| Firebase CLI | 13.x    |
 
 ---
 
 ## Useful Links
 
-- [Turborepo Documentation](https://turbo.build/repo/docs)
-- [Shadcn UI Components](https://ui.shadcn.com)
-- [tRPC Documentation](https://trpc.io)
+- [Vertex AI RAG documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/rag-overview)
+- [Firebase Cloud Functions v2](https://firebase.google.com/docs/functions)
+- [tRPC documentation](https://trpc.io)
 - [TanStack Query](https://tanstack.com/query)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Vite](https://vitejs.dev)
-- [Changesets](https://github.com/changesets/changesets)
+- [Shadcn UI](https://ui.shadcn.com)
+- [Turborepo](https://turbo.build/repo/docs)
 - [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation)
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow and guidelines.
-
----
-
-Built with ❤️ using Turborepo
+- [CI/CD Pipeline Guide](docs/ci-cd/CI-CD-Pipeline-Guide.md)

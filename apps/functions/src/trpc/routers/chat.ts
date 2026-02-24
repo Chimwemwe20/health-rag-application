@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { router, publicProcedure } from '../trpc.js'
 import { VertexAI, type Tool } from '@google-cloud/vertexai'
 import { FieldValue } from 'firebase-admin/firestore'
-import { db } from '../../lib/firebase.js'
+import { getDb } from '../../lib/firebase.js'
 
 // ─────────────────────────────────────────────────────────────────
 // Config — read from environment (set in Firebase Function config
@@ -16,26 +16,33 @@ const CORPUS_ID = process.env.RAG_CORPUS_ID ?? '7631349568579305472'
 const RAG_CORPUS_RESOURCE = `projects/${PROJECT}/locations/${LOCATION}/ragCorpora/${CORPUS_ID}`
 
 // ─────────────────────────────────────────────────────────────────
-// VertexAI client (lazily initialised once)
+// VertexAI client — lazily initialised on first request so the
+// Firebase CLI can inspect exported functions without timing out
 // ─────────────────────────────────────────────────────────────────
 
-const vertexAI = new VertexAI({ project: PROJECT, location: LOCATION })
+let _model: ReturnType<VertexAI['getGenerativeModel']> | null = null
 
-const model = vertexAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
-  systemInstruction: {
-    role: 'system',
-    parts: [
-      {
-        text:
-          'You are a Zambian Health Assistant. Answer questions clearly and compassionately ' +
-          'using only the health documents provided to you as context. ' +
-          'If the documents do not contain enough information to answer, say so honestly. ' +
-          'Never fabricate medical facts.',
+function getModel() {
+  if (!_model) {
+    const vertexAI = new VertexAI({ project: PROJECT, location: LOCATION })
+    _model = vertexAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: {
+        role: 'system',
+        parts: [
+          {
+            text:
+              'You are a Zambian Health Assistant. Answer questions clearly and compassionately ' +
+              'using only the health documents provided to you as context. ' +
+              'If the documents do not contain enough information to answer, say so honestly. ' +
+              'Never fabricate medical facts.',
+          },
+        ],
       },
-    ],
-  },
-})
+    })
+  }
+  return _model
+}
 
 // ─────────────────────────────────────────────────────────────────
 // RAG retrieval tool — tells Vertex AI to fetch relevant chunks
@@ -76,6 +83,7 @@ export const chatRouter = router({
     .input(SendMessageInput)
     .output(SendMessageOutput)
     .mutation(async ({ input }) => {
+      const db = getDb()
       try {
         // ── 1. Resolve or create the conversation ──────────────────
         let convId = input.conversationId
@@ -104,7 +112,7 @@ export const chatRouter = router({
         })
 
         // ── 3. Call Vertex AI ──────────────────────────────────────
-        const result = await model.generateContent({
+        const result = await getModel().generateContent({
           tools: [ragTool],
           contents: [
             {

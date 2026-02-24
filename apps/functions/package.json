@@ -16,7 +16,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --outfile=dist/index.js --platform=node --format=esm --external:firebase-admin --external:firebase-functions --external:@google-cloud/vertexai --external:@trpc/server --external:zod && node scripts/write-deploy-package.mjs",
     "dev": "tsc --watch",
     "lint": "eslint --ext .ts,.tsx src",
     "typecheck": "tsc --noEmit",
@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@google-cloud/vertexai": "^1.10.0",
-    "@repo/shared": "workspace:*",
     "@trpc/server": "^11.0.0-rc.660",
     "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.0.5",
@@ -33,8 +32,10 @@
   "devDependencies": {
     "@repo/config": "workspace:*",
     "@repo/eslint-config": "workspace:*",
+    "@repo/shared": "workspace:*",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
+    "esbuild": "^0.24.0",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.32.0",
     "typescript": "^5.7.2",
