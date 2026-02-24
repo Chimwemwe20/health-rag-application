@@ -3,22 +3,21 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { db } from '../lib/firebase'
 import type { ChatMessage } from '../types/chat'
 
-/**
- * Real-time subscription to messages for a single conversation,
- * ordered oldest-first so they render top-to-bottom.
- * Returns an empty array while conversationId or uid is null.
- *
- * uid must be included in the query so Firestore security rules can verify
- * ownership without rejecting the list request.
- */
-export function useMessages(conversationId: string | null, uid: string | null): ChatMessage[] {
+export function useMessages(
+  conversationId: string | null,
+  uid: string | null
+): { messages: ChatMessage[]; isLoading: boolean } {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!conversationId || !uid) {
       setMessages([])
+      setIsLoading(false)
       return
     }
+
+    setIsLoading(true)
 
     const q = query(
       collection(db, 'conversations', conversationId, 'messages'),
@@ -28,20 +27,22 @@ export function useMessages(conversationId: string | null, uid: string | null): 
     )
 
     const unsubscribe = onSnapshot(q, snapshot => {
-      const msgs: ChatMessage[] = snapshot.docs.map(doc => {
-        const d = doc.data()
-        return {
-          id: doc.id,
-          role: d.role as 'user' | 'assistant',
-          text: d.content as string,
-          sources: (d.citations as string[] | undefined) ?? [],
-        }
-      })
-      setMessages(msgs)
+      setMessages(
+        snapshot.docs.map(doc => {
+          const d = doc.data()
+          return {
+            id: doc.id,
+            role: d.role as 'user' | 'assistant',
+            text: d.content as string,
+            sources: (d.citations as string[] | undefined) ?? [],
+          }
+        })
+      )
+      setIsLoading(false)
     })
 
     return unsubscribe
   }, [conversationId, uid])
 
-  return messages
+  return { messages, isLoading }
 }

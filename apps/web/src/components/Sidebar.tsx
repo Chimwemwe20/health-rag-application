@@ -12,6 +12,7 @@ import {
   PencilSimple,
   Trash,
   Check,
+  SpinnerGap,
 } from '@phosphor-icons/react'
 import type { User } from 'firebase/auth'
 import type { Conversation } from '../types/chat'
@@ -25,6 +26,31 @@ function UserAvatar({ user }: { user: User }) {
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full gradient-cta text-xs font-bold text-white shadow-sm">
       {letter}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Skeleton loading list
+// ─────────────────────────────────────────────────────────────────
+
+function SidebarSkeletonList() {
+  const widths = [62, 80, 48, 72, 55, 68, 42, 76, 58, 65]
+  return (
+    <div className="flex flex-col gap-0.5 px-2 py-1" aria-hidden>
+      <div className="px-2 pb-1 pt-1">
+        <div className="h-2.5 w-10 animate-pulse rounded-full bg-muted" />
+      </div>
+      {widths.map((pct, i) => (
+        <div
+          key={i}
+          className="flex flex-col gap-1.5 rounded-md px-2.5 py-2"
+          style={{ animationDelay: `${i * 50}ms` }}
+        >
+          <div className="h-2.5 animate-pulse rounded-full bg-muted" style={{ width: `${pct}%` }} />
+          <div className="h-2 w-12 animate-pulse rounded-full bg-muted/50" />
+        </div>
+      ))}
     </div>
   )
 }
@@ -204,14 +230,20 @@ function ConversationItem({
 // Empty conversations state
 // ─────────────────────────────────────────────────────────────────
 
-function NoConversations() {
+function NoConversations({ isSearch }: { isSearch: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2 py-10 text-center">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
         <ChatCircle size={18} weight="duotone" className="text-muted-foreground" />
       </div>
-      <p className="text-xs font-medium text-muted-foreground">No conversations yet</p>
-      <p className="text-[10px] text-muted-foreground/60">Start a new chat to get going</p>
+      {isSearch ? (
+        <p className="text-xs font-medium text-muted-foreground">No results found</p>
+      ) : (
+        <>
+          <p className="text-xs font-medium text-muted-foreground">No conversations yet</p>
+          <p className="text-[10px] text-muted-foreground/60">Start a new chat to get going</p>
+        </>
+      )}
     </div>
   )
 }
@@ -226,6 +258,12 @@ export interface SidebarProps {
   theme: string
   onToggleTheme: () => void
   conversations: Conversation[]
+  isLoading: boolean
+  hasMore: boolean
+  isLoadingMore: boolean
+  onLoadMore: () => void
+  search: string
+  onSearchChange: (value: string) => void
   activeConvId: string | null
   onSelectConv: (id: string) => void
   onNewChat: () => void
@@ -242,6 +280,12 @@ export function Sidebar({
   theme,
   onToggleTheme,
   conversations,
+  isLoading,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
+  search,
+  onSearchChange,
   activeConvId,
   onSelectConv,
   onNewChat,
@@ -251,10 +295,6 @@ export function Sidebar({
   onDeleteConv,
   user,
 }: SidebarProps) {
-  const [search, setSearch] = useState('')
-
-  const filtered = conversations.filter(c => c.title.toLowerCase().includes(search.toLowerCase()))
-
   return (
     <>
       {/* Mobile overlay — uses backdrop from style.css blur support */}
@@ -333,7 +373,7 @@ export function Sidebar({
             <input
               type="search"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => onSearchChange(e.target.value)}
               placeholder="Search chats…"
               className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -342,12 +382,14 @@ export function Sidebar({
 
         {/* ── Conversation list ── */}
         <div className="flex-1 overflow-y-auto px-2 pb-2">
-          {filtered.length > 0 ? (
+          {isLoading ? (
+            <SidebarSkeletonList />
+          ) : conversations.length > 0 ? (
             <>
               <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Recent
               </p>
-              {filtered.map(conv => (
+              {conversations.map(conv => (
                 <ConversationItem
                   key={conv.id}
                   conv={conv}
@@ -360,14 +402,27 @@ export function Sidebar({
                   onDelete={onDeleteConv}
                 />
               ))}
+
+              {/* Load more */}
+              {hasMore && (
+                <button
+                  onClick={onLoadMore}
+                  disabled={isLoadingMore}
+                  className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-50"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <SpinnerGap size={11} className="animate-spin" />
+                      Loading…
+                    </>
+                  ) : (
+                    'Load more'
+                  )}
+                </button>
+              )}
             </>
-          ) : conversations.length > 0 ? (
-            // Conversations exist but search matched nothing
-            <div className="flex flex-col items-center gap-1 py-8 text-center">
-              <p className="text-xs text-muted-foreground">No results for "{search}"</p>
-            </div>
           ) : (
-            <NoConversations />
+            <NoConversations isSearch={search.length > 0} />
           )}
         </div>
 
