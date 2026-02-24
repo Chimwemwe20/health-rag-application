@@ -27,8 +27,7 @@ vi.mock('firebase-admin/firestore', () => ({
   FieldValue: { serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP') },
 }))
 vi.mock('../../lib/firebase.js', () => ({
-  auth: {},
-  db: {
+  getDb: vi.fn().mockReturnValue({
     collection: vi.fn().mockReturnValue({
       doc: vi.fn().mockReturnValue({
         set: hoisted.mockSet,
@@ -40,7 +39,7 @@ vi.mock('../../lib/firebase.js', () => ({
         }),
       }),
     }),
-  },
+  }),
 }))
 
 // Import router AFTER the mocks are set up
