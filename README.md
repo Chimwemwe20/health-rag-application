@@ -156,7 +156,7 @@ cp .env.example apps/functions/.env
 ### Frontend (`VITE_` prefix required)
 
 ```env
-VITE_API_URL=http://localhost:5002/health-lifeline-53fb3/europe-west2/api
+VITE_API_URL=http://localhost:5002/<your-project-id>/europe-west2/api
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=<project>.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=
@@ -170,7 +170,7 @@ VITE_FUNCTIONS_PORT=5002
 ### Backend
 
 ```env
-GOOGLE_CLOUD_PROJECT=health-lifeline-53fb3
+GOOGLE_CLOUD_PROJECT=<your-project-id>
 GOOGLE_CLOUD_LOCATION=europe-west2
 RAG_CORPUS_ID=<your-corpus-id>
 ```

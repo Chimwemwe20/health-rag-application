@@ -5,8 +5,14 @@
 # Uses a Firebase CI token for authentication.
 #
 # Required GitHub Secrets (Settings → Secrets and variables → Actions):
-#   FIREBASE_TOKEN      — Run `firebase login:ci` locally and paste the output
-#   FIREBASE_PROJECT_ID — Your Firebase project ID (e.g. my-project-dev)
+#   FIREBASE_TOKEN                    — Run `firebase login:ci` locally and paste the output
+#   FIREBASE_PROJECT_ID               — Your Firebase project ID
+#   VITE_API_URL                      — Live Cloud Functions API URL
+#   VITE_FIREBASE_API_KEY             — Firebase client API key
+#   VITE_FIREBASE_AUTH_DOMAIN         — Firebase auth domain
+#   VITE_FIREBASE_STORAGE_BUCKET      — Firebase storage bucket
+#   VITE_FIREBASE_MESSAGING_SENDER_ID
+#   VITE_FIREBASE_APP_ID
 # ============================================================================
 
 name: Deploy to Dev
@@ -24,8 +30,12 @@ on:
 # ENVIRONMENT VARIABLES
 # ============================================================================
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PNPM_VERSION: '8'
+  # Force development mode so pnpm installs devDependencies.
+  # This environment defaults NODE_ENV to production which causes pnpm to
+  # skip devDependencies, breaking TypeScript compilation.
+  NODE_ENV: development
 
 # ============================================================================
 # CONCURRENCY
@@ -67,6 +77,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
+      # NODE_ENV=development is set at the job level so pnpm installs
+      # devDependencies (TypeScript, build tools, etc.)
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -87,6 +99,9 @@ jobs:
       # ======================================================================
       # Deploy to Firebase
       # Authenticates using FIREBASE_TOKEN — no GCP IAM setup needed.
+      # NODE_ENV=development is inherited from the job env so the firebase.json
+      # predeploy scripts (pnpm --filter shared build, pnpm --filter functions
+      # build, predeploy.mjs) run correctly.
       # ======================================================================
       - name: Deploy Firestore rules and indexes
         env:
@@ -107,7 +122,6 @@ jobs:
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
             --non-interactive
-        continue-on-error: true
 
       - name: Deploy to Firebase Hosting
         env:
