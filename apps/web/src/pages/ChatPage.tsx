@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Heartbeat,
@@ -10,23 +10,23 @@ import {
   Pill,
   Warning,
   ChatCircle,
-  Robot,
-  User,
-  Link,
+  SpinnerGap,
 } from '@phosphor-icons/react'
 import { Sidebar } from '../components/Sidebar'
 import { SettingsPanel } from '../components/SettingsPanel'
+import { MessageBubble } from '../components/chat/MessageBubble'
+import { TypingIndicator } from '../components/chat/TypingIndicator'
+import { ConfirmDeleteDialog } from '../components/chat/ConfirmDeleteDialog'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/auth'
 import { toast } from '@repo/ui/Toast'
-import { useSendMessage } from '../hooks/useChat'
-import { useConversations } from '../hooks/useConversations'
+import { useSendMessage, useEditMessage, useDeleteMessage } from '../hooks/useChat'
+import { useConversationList } from '../hooks/useConversationList'
+import { useConversationActions } from '../hooks/useConversationActions'
 import { useMessages } from '../hooks/useMessages'
 import type { ChatMessage } from '../types/chat'
 
-// ─────────────────────────────────────────────────────────────────
-// Suggested prompts shown in empty state
 // ─────────────────────────────────────────────────────────────────
 
 const SUGGESTED_PROMPTS = [
@@ -37,17 +37,15 @@ const SUGGESTED_PROMPTS = [
 ]
 
 // ─────────────────────────────────────────────────────────────────
-// Empty / welcome state
+// Empty state
 // ─────────────────────────────────────────────────────────────────
 
-function EmptyState({ onPromptClick }: { onPromptClick: (text: string) => void }) {
+function EmptyState({ onPromptClick }: { onPromptClick: (t: string) => void }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-12">
-      {/* gradient-cta from style.css */}
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl gradient-cta shadow-lg animate-float">
         <Heartbeat size={30} weight="bold" className="text-white" />
       </div>
-
       <h2 className="mb-1 text-xl font-bold tracking-tight text-foreground">
         How can GlucoAI help you today?
       </h2>
@@ -55,14 +53,12 @@ function EmptyState({ onPromptClick }: { onPromptClick: (text: string) => void }
         Ask anything about diabetes management—glucose levels, medications, diet, or treatment
         options.
       </p>
-
-      {/* Prompt cards — card-hover from style.css */}
       <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
         {SUGGESTED_PROMPTS.map(({ icon: Icon, text }) => (
           <button
             key={text}
             onClick={() => onPromptClick(text)}
-            className="card-hover flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left text-sm transition-colors hover:border-brand-teal/40 hover:bg-muted"
+            className="card-hover flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left text-sm hover:border-brand-teal/40 hover:bg-muted hover:shadow-md transition-all duration-200"
           >
             <Icon size={15} weight="duotone" className="mt-0.5 shrink-0 text-brand-teal" />
             <span className="leading-snug text-foreground/80">{text}</span>
@@ -74,83 +70,32 @@ function EmptyState({ onPromptClick }: { onPromptClick: (text: string) => void }
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Chat message bubble
+// Loading skeleton
 // ─────────────────────────────────────────────────────────────────
 
-function MessageBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === 'user'
-
+function ChatLoadingState() {
+  const rows = [
+    { user: true, w: 'w-44' },
+    { user: false, w: 'w-64 h-16' },
+    { user: true, w: 'w-56' },
+    { user: false, w: 'w-72 h-20' },
+  ]
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      {/* Avatar */}
-      <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-          isUser ? 'gradient-cta' : 'border border-border bg-muted'
-        }`}
-      >
-        {isUser ? (
-          <User size={14} weight="bold" className="text-white" />
-        ) : (
-          <Robot size={14} weight="duotone" className="text-brand-teal" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className={`max-w-[75%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-        <div
-          className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
-            isUser ? 'gradient-cta text-white' : 'border border-border bg-card text-foreground'
-          }`}
-        >
-          {message.text}
-        </div>
-
-        {/* Sources */}
-        {!isUser && message.sources && message.sources.length > 0 && (
-          <div className="mt-1 flex flex-col gap-1">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Sources
-            </p>
-            {message.sources.map(src => (
-              <a
-                key={src}
-                href={src}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[11px] text-brand-teal underline-offset-2 hover:underline"
-              >
-                <Link size={10} />
-                <span className="truncate max-w-xs">{src.split('/').pop() ?? src}</span>
-              </a>
-            ))}
+    <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        {rows.map(({ user, w }, i) => (
+          <div key={i} className={`flex gap-3 ${user ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+            <div className={`${w} h-10 animate-pulse rounded-2xl bg-muted`} />
           </div>
-        )}
+        ))}
       </div>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Typing indicator (shown while waiting for response)
-// ─────────────────────────────────────────────────────────────────
-
-function TypingIndicator() {
-  return (
-    <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
-        <Robot size={14} weight="duotone" className="text-brand-teal" />
-      </div>
-      <div className="flex items-center gap-1 rounded-xl border border-border bg-card px-4 py-3">
-        <span className="animate-bounce delay-0 h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-        <span className="animate-bounce delay-150 h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-        <span className="animate-bounce delay-300 h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-      </div>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────
-// Message input bar
+// Message input
 // ─────────────────────────────────────────────────────────────────
 
 function MessageInput({
@@ -164,22 +109,28 @@ function MessageInput({
   onSend: () => void
   disabled?: boolean
 }) {
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      onSend()
-    }
-  }
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.style.height = 'auto'
+    ref.current.style.height = `${Math.min(ref.current.scrollHeight, 160)}px`
+  }, [value])
 
   return (
-    <div className="shrink-0 border-t border-border bg-background px-4 py-3">
+    <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-sm px-4 py-3">
       <div className="mx-auto max-w-3xl">
-        {/* focus-within ring uses --ring from style.css */}
-        <div className="relative flex items-end gap-2 rounded-xl border border-border bg-card shadow-sm transition-shadow focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/30">
+        <div className="relative flex items-end gap-2 rounded-xl border border-border bg-card shadow-sm transition-all duration-200 focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/30 focus-within:shadow-md">
           <textarea
+            ref={ref}
             value={value}
             onChange={e => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                onSend()
+              }
+            }}
             placeholder="Ask GlucoAI about your diabetes questions…"
             rows={1}
             disabled={disabled}
@@ -187,14 +138,17 @@ function MessageInput({
             style={{ maxHeight: '160px' }}
           />
           <div className="shrink-0 pb-2.5 pr-2.5">
-            {/* gradient-cta from style.css */}
             <button
               onClick={onSend}
               disabled={!value.trim() || disabled}
               aria-label="Send message"
-              className="flex h-8 w-8 items-center justify-center rounded-lg gradient-cta text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-8 w-8 items-center justify-center rounded-lg gradient-cta text-white shadow-sm transition-all duration-200 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <PaperPlaneRight size={14} weight="fill" />
+              {disabled ? (
+                <SpinnerGap size={14} className="animate-spin" />
+              ) : (
+                <PaperPlaneRight size={14} weight="fill" />
+              )}
             </button>
           </div>
         </div>
@@ -208,7 +162,7 @@ function MessageInput({
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Page Root
+// Page root
 // ─────────────────────────────────────────────────────────────────
 
 export function ChatPage() {
@@ -216,113 +170,246 @@ export function ChatPage() {
   const { conversationId } = useParams<{ conversationId?: string }>()
   const { theme, toggle } = useTheme()
   const { user } = useAuth()
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
-  // Optimistic user bubble shown while waiting for the backend response
   const [pendingText, setPendingText] = useState<string | null>(null)
+  const [editingMessage, setEditingMessage] = useState<{ id: string; value: string } | null>(null)
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const prevCountRef = useRef(0)
+  // Set to the conversationId once the Firestore subscription has completed its first
+  // load (isLoading transitions true→false). This prevents a false-positive redirect on
+  // navigation, while still catching both "zombie" convos (all messages were previously
+  // deleted) and "live-cleared" convos (last message deleted during this session).
+  const prevMessagesLoadingRef = useRef(false)
+  const [messagesSubscribedFor, setMessagesSubscribedFor] = useState<string | null>(null)
 
   const sendMessage = useSendMessage()
-  const conversations = useConversations(user?.uid ?? null)
+  const editMessage = useEditMessage()
+  const deleteMessage = useDeleteMessage()
+  const {
+    conversations,
+    isLoading: convsLoading,
+    hasMore: convsHasMore,
+    loadMore: convsLoadMore,
+    isLoadingMore: convsLoadingMore,
+    search: convsSearch,
+    setSearch: setConvsSearch,
+    refetch: refetchConvs,
+  } = useConversationList(user?.uid ?? null)
+  const { renameConversation, deleteConversation } = useConversationActions()
+  const { messages: firestoreMessages, isLoading: messagesLoading } = useMessages(
+    conversationId ?? null,
+    user?.uid ?? null
+  )
 
-  // Firestore is the source of truth — messages reload automatically when
-  // conversationId changes (e.g. user clicks a history item in the sidebar)
-  const firestoreMessages = useMessages(conversationId ?? null, user?.uid ?? null)
+  // Drop the optimistic bubble as soon as Firestore delivers the real message
+  useEffect(() => {
+    if (!pendingText) return
+    if (firestoreMessages.some(m => m.role === 'user' && m.text === pendingText)) {
+      setPendingText(null)
+    }
+  }, [firestoreMessages, pendingText])
 
-  // While the backend is processing, show the optimistic user bubble on top
   const displayMessages: ChatMessage[] = pendingText
     ? [...firestoreMessages, { id: 'pending', role: 'user', text: pendingText }]
     : firestoreMessages
 
-  // Scroll to bottom whenever messages or the typing indicator change
+  const newMessageStartIdx = prevCountRef.current
+  useEffect(() => {
+    prevCountRef.current = displayMessages.length
+  }, [displayMessages.length])
+
+  const isWaitingForAI = sendMessage.isPending || editMessage.isPending
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [displayMessages, sendMessage.isPending])
+  }, [displayMessages, isWaitingForAI])
 
   const activeConv = conversations.find(c => c.id === conversationId)
 
-  async function handleSignOut() {
+  // ── Handlers ──────────────────────────────────────────────────
+
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut()
       toast.success('Signed out successfully')
     } catch {
-      // ignore
+      /* ignore */
     }
     navigate('/')
+  }, [navigate])
+
+  async function handleDeleteConv(id: string) {
+    try {
+      await deleteConversation(id)
+      refetchConvs()
+      toast.success('Chat deleted')
+      if (conversationId === id) navigate('/new-chat', { replace: true })
+    } catch {
+      toast.error('Failed to delete chat')
+    }
+  }
+
+  async function handleRenameConv(id: string, title: string) {
+    try {
+      await renameConversation(id, title)
+      refetchConvs()
+      toast.success('Chat renamed')
+    } catch {
+      toast.error('Failed to rename chat')
+    }
   }
 
   async function handleSend() {
     const text = inputValue.trim()
     if (!text || sendMessage.isPending) return
-
     setInputValue('')
     setPendingText(text)
-
     try {
       const result = await sendMessage.mutateAsync({
         message: text,
         conversationId: conversationId ?? 'new',
         uid: user!.uid,
       })
-
-      // Firestore onSnapshot will deliver both messages automatically.
-      // Clear the optimistic bubble now that the real messages are on their way.
       setPendingText(null)
-
-      // If this was a new conversation, update the URL to the real conversation ID
-      if (!conversationId) {
-        navigate(`/chat/${result.conversationId}`, { replace: true })
-      }
+      refetchConvs()
+      if (!conversationId) navigate(`/chat/${result.conversationId}`, { replace: true })
     } catch (err: unknown) {
       setPendingText(null)
-      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
-      toast.error(message)
+      toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
   }
 
+  async function handleEditSubmit() {
+    if (!editingMessage || !conversationId || !user) return
+    const text = editingMessage.value.trim()
+    if (!text || editMessage.isPending) return
+    const { id } = editingMessage
+    setEditingMessage(null)
+    setPendingText(text)
+    try {
+      await editMessage.mutateAsync({
+        messageId: id,
+        newMessage: text,
+        conversationId,
+        uid: user.uid,
+      })
+      setPendingText(null)
+    } catch (err: unknown) {
+      setPendingText(null)
+      toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingMessageId || !conversationId || !user) return
+    const messageId = deletingMessageId
+    try {
+      await deleteMessage.mutateAsync({ messageId, conversationId, uid: user.uid })
+      setDeletingMessageId(null)
+      refetchConvs()
+    } catch (err: unknown) {
+      setDeletingMessageId(null)
+      toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+    }
+  }
+
+  // Track the true→false transition of messagesLoading per conversation.
+  // This fires once the Firestore subscription has delivered its first snapshot,
+  // covering both: (a) zombie convos where all messages were already gone, and
+  // (b) convos where the last message is deleted live in this session.
+  useEffect(() => {
+    const wasLoading = prevMessagesLoadingRef.current
+    prevMessagesLoadingRef.current = messagesLoading
+    if (conversationId && wasLoading && !messagesLoading) {
+      setMessagesSubscribedFor(conversationId)
+    }
+  }, [conversationId, messagesLoading])
+
+  // Navigate away from conversations with no remaining messages.
+  // The messagesSubscribedFor guard ensures we only act after the subscription
+  // has actually completed — not during the brief loading gap on navigation.
+  useEffect(() => {
+    if (
+      conversationId &&
+      messagesSubscribedFor === conversationId &&
+      !messagesLoading &&
+      firestoreMessages.length === 0 &&
+      !pendingText
+    ) {
+      navigate('/new-chat', { replace: true })
+    }
+  }, [
+    firestoreMessages.length,
+    conversationId,
+    messagesLoading,
+    pendingText,
+    messagesSubscribedFor,
+    navigate,
+  ])
+
+  // ── Render ────────────────────────────────────────────────────
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <ConfirmDeleteDialog
+        open={!!deletingMessageId}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeletingMessageId(null)}
+        isDeleting={deleteMessage.isPending}
+      />
+
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         theme={theme}
         onToggleTheme={toggle}
         conversations={conversations}
+        isLoading={convsLoading}
+        hasMore={convsHasMore}
+        isLoadingMore={convsLoadingMore}
+        onLoadMore={convsLoadMore}
+        search={convsSearch}
+        onSearchChange={setConvsSearch}
         activeConvId={conversationId ?? null}
         onSelectConv={id => navigate(`/chat/${id}`)}
         onNewChat={() => navigate('/new-chat')}
         onSignOut={handleSignOut}
         onOpenSettings={() => setSettingsOpen(true)}
+        onRenameConv={handleRenameConv}
+        onDeleteConv={handleDeleteConv}
         user={user}
       />
 
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} user={user} />
 
-      {/* Main panel */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4">
           <div className="flex min-w-0 items-center gap-3">
-            {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen(v => !v)}
               aria-label="Open sidebar"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
             >
               <List size={17} />
             </button>
-
-            <span className="truncate text-sm font-medium text-foreground">
-              {activeConv ? activeConv.title : 'New Conversation'}
-            </span>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md gradient-cta">
+                <Heartbeat size={12} weight="bold" className="text-white" />
+              </div>
+              <span className="truncate text-sm font-medium text-foreground">
+                {activeConv ? activeConv.title : 'New Conversation'}
+              </span>
+            </div>
           </div>
-
-          {/* Desktop theme toggle (sidebar has its own for mobile) */}
           <button
             onClick={toggle}
             aria-label="Toggle theme"
-            className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+            className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground lg:flex"
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -330,24 +417,48 @@ export function ChatPage() {
 
         {/* Body */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {displayMessages.length === 0 ? (
+          {messagesLoading ? (
+            <ChatLoadingState />
+          ) : displayMessages.length === 0 ? (
             <EmptyState onPromptClick={text => setInputValue(text)} />
           ) : (
             <div className="flex-1 overflow-y-auto px-4 py-6">
               <div className="mx-auto flex max-w-3xl flex-col gap-6">
-                {displayMessages.map(msg => (
-                  <MessageBubble key={msg.id} message={msg} />
+                {displayMessages.map((msg, idx) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    isNew={idx >= newMessageStartIdx}
+                    onEdit={
+                      msg.role === 'user' && msg.id !== 'pending'
+                        ? (id, text) => setEditingMessage({ id, value: text })
+                        : undefined
+                    }
+                    onDelete={
+                      msg.role === 'user' && msg.id !== 'pending'
+                        ? id => setDeletingMessageId(id)
+                        : undefined
+                    }
+                    isBeingEdited={editingMessage?.id === msg.id}
+                    editValue={editingMessage?.id === msg.id ? editingMessage.value : undefined}
+                    onEditChange={v =>
+                      setEditingMessage(prev => (prev ? { ...prev, value: v } : null))
+                    }
+                    onEditSubmit={handleEditSubmit}
+                    onEditCancel={() => setEditingMessage(null)}
+                  />
                 ))}
-                {sendMessage.isPending && <TypingIndicator />}
+                {isWaitingForAI && <TypingIndicator />}
                 <div ref={bottomRef} />
               </div>
             </div>
           )}
+
           <MessageInput
             value={inputValue}
             onChange={setInputValue}
             onSend={handleSend}
-            disabled={sendMessage.isPending}
+            disabled={isWaitingForAI || deleteMessage.isPending}
           />
         </div>
       </div>
