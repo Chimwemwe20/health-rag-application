@@ -12,7 +12,7 @@ import {
   Pill,
   Warning,
   ChatCircle,
-  Robot,
+  Stethoscope,
   User,
   Link,
   PencilSimple,
@@ -91,8 +91,6 @@ function MessageBubble({
 }: {
   message: ChatMessage
   conversationId?: string
-  /** Called with the new text; caller is responsible for soft-deleting the
-   *  original and re-sending via the chat mutation. */
   onEditSend?: (originalMsgId: string, newText: string) => void
 }) {
   const isUser = message.role === 'user'
@@ -121,8 +119,6 @@ function MessageBubble({
     }
     setIsSavingEdit(true)
     try {
-      // Cascade deletion is handled by the parent (ChatPage.handleEditMessage).
-      // This bubble just signals what was edited and what the new text is.
       onEditSend?.(message.id, trimmed)
     } catch {
       toast.error('Could not save edit.')
@@ -165,12 +161,9 @@ function MessageBubble({
     }
   }
 
-  // ── Inline delete confirmation ──────────────────────────────────
-
   if (confirmingDelete) {
     return (
       <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-        {/* Avatar placeholder to maintain alignment */}
         <div className="h-8 w-8 shrink-0" />
         <div
           className={`flex items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm ${
@@ -197,22 +190,27 @@ function MessageBubble({
   }
 
   return (
-    <div className={`group flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      {/* Avatar */}
+    <div
+      className={`group flex w-full items-start gap-2.5 ${isUser ? 'flex-row-reverse justify-start' : 'flex-row'}`}
+    >
+      {/* Avatar — fixed at top of the message */}
       <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
           isUser ? 'gradient-cta' : 'border border-border bg-muted'
         }`}
       >
         {isUser ? (
-          <User size={14} weight="bold" className="text-white" />
+          <User size={13} weight="bold" className="text-white" />
         ) : (
-          <Robot size={14} weight="duotone" className="text-brand-teal" />
+          <Stethoscope size={13} weight="duotone" className="text-brand-teal" />
         )}
       </div>
 
-      {/* Content */}
-      <div className={`max-w-[75%] ${isUser ? 'items-end' : 'items-start'} flex flex-col gap-1.5`}>
+      {/* Content — constrained width, no auto-margin needed since row handles edge alignment */}
+      <div
+        className={`flex flex-col gap-1.5 min-w-0 ${isUser ? 'items-end' : 'items-start'}`}
+        style={{ maxWidth: 'min(78%, 640px)' }}
+      >
         {/* Bubble */}
         {isEditing ? (
           <div
@@ -251,16 +249,15 @@ function MessageBubble({
             </div>
           </div>
         ) : isUser ? (
-          <div className="relative rounded-xl px-4 py-2.5 text-sm leading-relaxed gradient-cta text-white">
+          <div className="rounded-2xl rounded-br-sm px-4 py-2.5 text-sm leading-relaxed gradient-cta text-white shadow-sm">
             {message.text}
           </div>
         ) : (
-          <div className="relative rounded-xl border border-border bg-card px-4 py-3">
+          <div className="rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 shadow-sm">
             <div className="prose-chat">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  // Open links in new tab safely
                   a: ({ href, children }) => (
                     <a href={href} target="_blank" rel="noopener noreferrer">
                       {children}
@@ -281,7 +278,6 @@ function MessageBubble({
               isUser ? 'self-end' : 'self-start'
             }`}
           >
-            {/* Copy */}
             <button
               onClick={() => void handleCopy()}
               aria-label="Copy message"
@@ -291,7 +287,6 @@ function MessageBubble({
               <Copy size={11} />
             </button>
 
-            {/* Edit — user messages only */}
             {isUser && (
               <button
                 onClick={startEdit}
@@ -303,7 +298,6 @@ function MessageBubble({
               </button>
             )}
 
-            {/* Delete */}
             <button
               onClick={() => setConfirmingDelete(true)}
               aria-label="Delete message"
@@ -338,34 +332,51 @@ function MessageBubble({
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Typing indicator (shown while waiting for response)
+// Typing indicator — improved wave + label
 // ─────────────────────────────────────────────────────────────────
 
 function TypingIndicator() {
   return (
-    <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
-        <Robot size={14} weight="duotone" className="text-brand-teal" />
+    <div className="flex items-end gap-2.5">
+      {/* Avatar */}
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
+        <Stethoscope size={13} weight="duotone" className="text-brand-teal" />
       </div>
-      <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-3">
-        {([0, 150, 300] as const).map(delay => (
-          <span
-            key={delay}
-            className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-bounce"
-            style={{ animationDelay: `${delay}ms` }}
-          />
-        ))}
+
+      {/* Bubble */}
+      <div className="flex items-center gap-3 rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 shadow-sm">
+        {/* Wave dots */}
+        <div className="flex items-end gap-[3px]" aria-label="GlucoAI is typing">
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              className="block w-1.5 rounded-full bg-brand-teal"
+              style={{
+                height: '6px',
+                animation: 'typing-wave 1.1s ease-in-out infinite',
+                animationDelay: `${i * 0.16}s`,
+              }}
+            />
+          ))}
+        </div>
+        <span className="text-xs text-muted-foreground select-none">GlucoAI is thinking…</span>
       </div>
+
+      <style>{`
+        @keyframes typing-wave {
+          0%, 60%, 100% { transform: scaleY(1); opacity: 0.45; }
+          30% { transform: scaleY(2.4); opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Skeleton loader for messages (shown before first Firestore snapshot)
+// Skeleton loader for messages
 // ─────────────────────────────────────────────────────────────────
 
 function MessagesSkeleton() {
-  // Alternating user / assistant skeleton bubbles
   const rows: Array<{ isUser: boolean; widths: string[] }> = [
     { isUser: false, widths: ['80%', '60%', '40%'] },
     { isUser: true, widths: ['55%'] },
@@ -378,15 +389,16 @@ function MessagesSkeleton() {
     <div className="flex-1 overflow-y-auto px-4 py-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-5">
         {rows.map((row, ri) => (
-          <div key={ri} className={`flex gap-3 ${row.isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-            {/* Avatar skeleton */}
-            <div className="h-8 w-8 shrink-0 rounded-full animate-skeleton" />
-
-            {/* Bubble skeleton */}
+          <div
+            key={ri}
+            className={`flex w-full items-start gap-2.5 ${row.isUser ? 'flex-row-reverse' : 'flex-row'}`}
+          >
+            <div className="mt-0.5 h-7 w-7 shrink-0 rounded-full animate-skeleton" />
             <div
-              className={`flex max-w-[75%] flex-col gap-2 ${row.isUser ? 'items-end' : 'items-start'}`}
+              className={`flex flex-col gap-2 ${row.isUser ? 'items-end' : 'items-start'}`}
+              style={{ maxWidth: 'min(78%, 640px)' }}
             >
-              <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-card px-4 py-3 w-full">
+              <div className="flex flex-col gap-1.5 rounded-2xl border border-border bg-card px-4 py-3 w-full">
                 {row.widths.map((w, wi) => (
                   <div
                     key={wi}
@@ -420,7 +432,6 @@ function MessageInput({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Auto-grow textarea
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
@@ -438,28 +449,34 @@ function MessageInput({
   return (
     <div className="shrink-0 border-t border-border bg-background px-4 py-3">
       <div className="mx-auto max-w-3xl">
-        <div className="relative flex items-end gap-2 rounded-xl border border-border bg-card shadow-sm transition-shadow focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/30">
+        {/* Unified pill — overflow-hidden clips button corners, focus-within rings the whole pill */}
+        <div
+          className="flex items-end overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/25"
+          onClick={() => textareaRef.current?.focus()}
+        >
           <textarea
             ref={textareaRef}
             value={value}
             onChange={e => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask GlucoAI about your diabetes questions… (Shift+Enter for new line)"
+            placeholder="Ask a question about diabetes…"
             rows={1}
             disabled={disabled}
-            className="flex-1 resize-none rounded-xl bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+            className="flex-1 min-w-0 resize-none bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 leading-relaxed"
             style={{ maxHeight: '160px', overflowY: 'auto' }}
           />
-          <div className="shrink-0 pb-2.5 pr-2.5">
-            <button
-              onClick={onSend}
-              disabled={!value.trim() || disabled}
-              aria-label="Send message"
-              className="flex h-8 w-8 items-center justify-center rounded-lg gradient-cta text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <PaperPlaneRight size={14} weight="fill" />
-            </button>
-          </div>
+          {/* Button sits flush inside the pill — no extra wrapper border/radius needed */}
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              onSend()
+            }}
+            disabled={!value.trim() || disabled}
+            aria-label="Send message"
+            className="flex h-full min-h-[46px] w-12 shrink-0 items-center justify-center self-stretch gradient-cta text-white transition-all hover:opacity-90 active:opacity-75 disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            <PaperPlaneRight size={15} weight="fill" />
+          </button>
         </div>
         <p className="mt-2 text-center text-[10px] text-muted-foreground">
           GlucoAI may produce inaccurate information. Always consult a qualified healthcare
@@ -552,33 +569,23 @@ export function ChatPage() {
         const message =
           err instanceof Error ? err.message : 'Something went wrong. Please try again.'
         toast.error(message)
-        throw err // Re-throw so callers (like handleEditMessage) know it failed
+        throw err
       }
     },
     [inputValue, conversationId, sendMessage, user, navigate]
   )
 
-  /**
-   * Called when the user confirms an edit.
-   * Soft-deletes the edited user message AND every message that came after it
-   * (the assistant reply/replies for that turn), then re-sends the new text.
-   */
   const handleEditMessage = useCallback(
     async (originalMsgId: string, newText: string) => {
       try {
-        // 1. Send the new message first. If this fails, it throws and we don't delete.
         await handleSend(newText)
 
-        // 2. Only if successful, delete the original message and everything that came after it
         const idx = firestoreMessages.findIndex(m => m.id === originalMsgId)
         if (idx !== -1 && conversationId) {
           const toDelete = firestoreMessages.slice(idx)
-          // We don't await this to keep the UI snappy, or we can await it if preferred.
-          // The user requested "only delete if edit is successful", which we've ensured by the order.
           void Promise.all(toDelete.map(m => deleteMessage(conversationId, m.id)))
         }
       } catch (err) {
-        // Error is already toasted in handleSend
         console.error('Failed to edit message:', err)
       }
     },
@@ -611,7 +618,6 @@ export function ChatPage() {
         {/* Header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4 shadow-[0_1px_0_0_hsl(var(--border))]">
           <div className="flex min-w-0 items-center gap-3">
-            {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen(v => !v)}
               aria-label="Open sidebar"
@@ -632,7 +638,6 @@ export function ChatPage() {
             </div>
           </div>
 
-          {/* Desktop theme toggle */}
           <button
             onClick={toggle}
             aria-label="Toggle theme"
@@ -650,7 +655,7 @@ export function ChatPage() {
             <EmptyState onPromptClick={text => setInputValue(text)} />
           ) : (
             <div className="flex-1 overflow-y-auto px-4 py-6">
-              <div className="mx-auto flex max-w-3xl flex-col gap-5">
+              <div className="mx-auto flex max-w-3xl flex-col gap-4">
                 {displayMessages.map(msg => (
                   <MessageBubble
                     key={msg.id}

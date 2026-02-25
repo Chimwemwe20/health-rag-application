@@ -6,7 +6,6 @@ import {
   ChatCircle,
   BookOpen,
   ShieldCheck,
-  Clock,
   ArrowRight,
   List,
   X,
@@ -23,6 +22,7 @@ import {
   TwitterLogo,
   Sparkle,
   ArrowUpRight,
+  Warning,
 } from '@phosphor-icons/react'
 import { Button } from '@repo/ui/Button'
 import { Card, CardContent } from '@repo/ui/Card'
@@ -32,10 +32,7 @@ import { useTheme } from '../hooks/useTheme'
 // Navbar
 // ─────────────────────────────────────────────────────────────────
 
-const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
-  { label: 'FAQ', href: '#faq' },
-]
+const NAV_LINKS = [{ label: 'Features', href: '#features' }]
 
 function Navbar({ theme, onToggle }: { theme: string; onToggle: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -132,6 +129,25 @@ function Navbar({ theme, onToggle }: { theme: string; onToggle: () => void }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Disclaimer Banner
+// ─────────────────────────────────────────────────────────────────
+
+// function DisclaimerBanner() {
+//   return (
+//     <div className="border-b border-amber-200/60 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/30 py-2.5">
+//       <div className="section-container flex items-center justify-center gap-2 text-center text-xs text-amber-800 dark:text-amber-300">
+//         <Warning size={14} weight="fill" className="shrink-0" />
+//         <span>
+//           GlucoAI is an AI assistant for informational purposes only.{' '}
+//           <strong>It is not a medical device and does not replace professional medical advice.</strong>{' '}
+//           Always consult your doctor or care team for diagnosis and treatment decisions.
+//         </span>
+//       </div>
+//     </div>
+//   )
+// }
+
+// ─────────────────────────────────────────────────────────────────
 // Hero
 // ─────────────────────────────────────────────────────────────────
 
@@ -155,17 +171,18 @@ function HeroSection() {
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-teal/30 bg-brand-teal/8 px-3 py-1 text-xs font-semibold text-brand-teal">
                 <Sparkle size={12} weight="fill" />
-                AI-Powered Diabetes Care
+                AI-Powered Diabetes Q&amp;A
               </span>
             </div>
 
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem] leading-[1.1]">
-              Manage Diabetes <span className="text-gradient">Smarter</span> with AI
+              Ask Questions About <span className="text-gradient">Diabetes</span>, Get Cited Answers
             </h1>
 
             <p className="max-w-lg text-lg leading-relaxed text-muted-foreground">
-              Ask questions, understand your readings, and get evidence-based guidance—instantly.
-              Powered by RAG technology trained on thousands of medical sources.
+              GlucoAI is an AI assistant that answers your diabetes questions using evidence from
+              medical literature and clinical guidelines. Ask anything—get clear, sourced responses
+              in seconds.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -177,20 +194,19 @@ function HeroSection() {
                 Ask a Question
                 <ArrowRight size={16} weight="bold" />
               </Button>
-              <Button size="lg" variant="outline" className="gap-2">
-                See How It Works
-              </Button>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {['🔒 Privacy-First', '📚 Multiple Sources', '⚡ Instant Answers'].map(item => (
-                <span
-                  key={item}
-                  className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
-                >
-                  {item}
-                </span>
-              ))}
+              {['🔒 Privacy-First', '📚 Cited Sources', '⚡ Instant Answers', '🤖 AI-Powered'].map(
+                item => (
+                  <span
+                    key={item}
+                    className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
+                  >
+                    {item}
+                  </span>
+                )
+              )}
             </div>
           </div>
 
@@ -211,7 +227,7 @@ function HeroSection() {
                       </p>
                       <p className="flex items-center gap-1 text-[11px] text-brand-mint">
                         <span className="h-1.5 w-1.5 rounded-full bg-brand-mint inline-block animate-pulse" />
-                        Online · Ready
+                        AI · Informational Only
                       </p>
                     </div>
                     <ShieldCheck size={16} weight="fill" className="text-brand-teal shrink-0" />
@@ -238,6 +254,10 @@ function HeroSection() {
                     <span>Source: American Diabetes Association Standards of Care 2024</span>
                     <ArrowUpRight size={11} className="ml-auto shrink-0" />
                   </div>
+
+                  <div className="rounded-lg border border-amber-200/60 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 px-3 py-2 text-[10px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                    ⚠️ AI-generated. Not a substitute for professional medical advice.
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -249,33 +269,43 @@ function HeroSection() {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Stats
+// What It Is (replaces Stats — no fake numbers)
 // ─────────────────────────────────────────────────────────────────
 
-function StatsSection() {
+function WhatItIsSection() {
   return (
     <section className="border-y border-border bg-muted/30 py-10">
       <div className="section-container">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <ChatCircle size={26} weight="duotone" className="text-brand-teal" />
-            <p className="text-3xl font-extrabold tracking-tight text-foreground">—</p>
-            <p className="text-sm text-muted-foreground">Questions Answered</p>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 text-center">
+          <div className="flex flex-col items-center gap-3 px-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-teal/10">
+              <Brain size={24} weight="duotone" className="text-brand-teal" />
+            </div>
+            <p className="font-semibold text-foreground">An AI Assistant</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              GlucoAI uses large language models to understand your questions and generate
+              informative responses grounded in medical sources.
+            </p>
           </div>
-          <div className="flex flex-col items-center gap-2 text-center">
-            <BookOpen size={26} weight="duotone" className="text-brand-teal" />
-            <p className="text-3xl font-extrabold tracking-tight text-foreground">—</p>
-            <p className="text-sm text-muted-foreground">Medical Sources</p>
+          <div className="flex flex-col items-center gap-3 px-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10">
+              <BookOpen size={24} weight="duotone" className="text-brand-blue" />
+            </div>
+            <p className="font-semibold text-foreground">Source-Backed Answers</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Every response cites the clinical guidelines and peer-reviewed literature it draws
+              from, so you can verify and read further.
+            </p>
           </div>
-          <div className="flex flex-col items-center gap-2 text-center">
-            <ShieldCheck size={26} weight="duotone" className="text-brand-teal" />
-            <p className="text-3xl font-extrabold tracking-tight text-foreground">—</p>
-            <p className="text-sm text-muted-foreground">Accuracy Rating</p>
-          </div>
-          <div className="flex flex-col items-center gap-2 text-center">
-            <Clock size={26} weight="duotone" className="text-brand-teal" />
-            <p className="text-3xl font-extrabold tracking-tight text-foreground">24/7</p>
-            <p className="text-sm text-muted-foreground">Always Available</p>
+          <div className="flex flex-col items-center gap-3 px-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+              <Warning size={24} weight="duotone" className="text-amber-500" />
+            </div>
+            <p className="font-semibold text-foreground">Not Medical Advice</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              GlucoAI is for education and information only. It cannot diagnose, prescribe, or
+              replace your healthcare provider.
+            </p>
           </div>
         </div>
       </div>
@@ -292,13 +322,13 @@ function FeaturesSection() {
     <section id="features" className="py-16 md:py-24">
       <div className="section-container">
         <div className="mx-auto mb-14 max-w-2xl text-center">
-          <span className="text-sm font-semibold text-brand-teal">Features</span>
+          <span className="text-sm font-semibold text-brand-teal">What You Can Ask</span>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Everything you need to manage diabetes
+            Diabetes questions, answered
           </h2>
           <p className="mt-4 text-muted-foreground leading-relaxed">
-            From instant Q&amp;A to deep clinical insights—GlucoAI gives you the tools to understand
-            and manage your condition with confidence.
+            GlucoAI can help you understand a wide range of diabetes topics—drawing on clinical
+            guidelines and medical research to give you clear, sourced information.
           </p>
         </div>
 
@@ -308,10 +338,10 @@ function FeaturesSection() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-blue/10">
                 <ChatCircle size={24} weight="duotone" className="text-brand-blue" />
               </div>
-              <h3 className="mb-2 font-semibold text-foreground">Smart Q&A</h3>
+              <h3 className="mb-2 font-semibold text-foreground">General Q&amp;A</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Ask any diabetes question in plain English. Get precise, context-aware answers
-                instantly—no jargon required.
+                Ask any diabetes question in plain language. Get clear answers without jargon,
+                backed by clinical sources you can read yourself.
               </p>
             </CardContent>
           </Card>
@@ -321,10 +351,10 @@ function FeaturesSection() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-teal/10">
                 <BookOpen size={24} weight="duotone" className="text-brand-teal" />
               </div>
-              <h3 className="mb-2 font-semibold text-foreground">Evidence-Based</h3>
+              <h3 className="mb-2 font-semibold text-foreground">Guidelines &amp; Standards</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Every answer is grounded in peer-reviewed medical literature, ADA guidelines, and
-                trusted health databases.
+                Understand what ADA, WHO, and other major bodies recommend—explained in plain
+                English with direct references to the source.
               </p>
             </CardContent>
           </Card>
@@ -334,10 +364,10 @@ function FeaturesSection() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-mint/10">
                 <Drop size={24} weight="duotone" className="text-brand-mint" />
               </div>
-              <h3 className="mb-2 font-semibold text-foreground">Glucose Insights</h3>
+              <h3 className="mb-2 font-semibold text-foreground">Glucose &amp; Targets</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Understand what your readings mean, learn target ranges, and discover how food and
-                activity impact your levels.
+                Learn about blood glucose targets, HbA1c ranges, hypoglycemia, hyperglycemia, and
+                what different readings can mean.
               </p>
             </CardContent>
           </Card>
@@ -347,10 +377,10 @@ function FeaturesSection() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-coral/10">
                 <Pill size={24} weight="duotone" className="text-brand-coral" />
               </div>
-              <h3 className="mb-2 font-semibold text-foreground">Treatment Guidance</h3>
+              <h3 className="mb-2 font-semibold text-foreground">Medications &amp; Treatments</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Learn about insulin types, oral medications, and emerging therapies—explained
-                clearly and accurately.
+                Learn about insulin types, oral medications, and emerging therapies—what they are
+                and how they work, based on clinical literature.
               </p>
             </CardContent>
           </Card>
@@ -360,10 +390,10 @@ function FeaturesSection() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-blue/10">
                 <ChartLineUp size={24} weight="duotone" className="text-brand-blue" />
               </div>
-              <h3 className="mb-2 font-semibold text-foreground">Progress Tracking</h3>
+              <h3 className="mb-2 font-semibold text-foreground">Lifestyle &amp; Diet</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Monitor HbA1c trends, glucose patterns, and key health metrics in one unified
-                dashboard.
+                Explore how nutrition, physical activity, sleep, and stress affect blood sugar
+                management, with evidence-based context.
               </p>
             </CardContent>
           </Card>
@@ -376,7 +406,7 @@ function FeaturesSection() {
               <h3 className="mb-2 font-semibold text-foreground">Privacy-First</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Your health data stays yours. We follow HIPAA-aware practices and never sell your
-                information.
+                information to third parties.
               </p>
             </CardContent>
           </Card>
@@ -400,8 +430,8 @@ function HowItWorksSection() {
             Answers in three simple steps
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Powered by Retrieval-Augmented Generation—combining the precision of search with the
-            clarity of AI.
+            Powered by Retrieval-Augmented Generation (RAG)—combining the precision of search with
+            the clarity of AI to give you grounded, traceable answers.
           </p>
         </div>
 
@@ -416,23 +446,23 @@ function HowItWorksSection() {
               icon: ChatCircle,
               title: 'Ask Your Question',
               description:
-                'Type any diabetes-related question naturally—just as you would ask your doctor or care team.',
+                'Type any diabetes-related question naturally. No special syntax needed—write it just as you would ask your doctor.',
             },
             {
               icon: MagnifyingGlass,
               title: 'AI Searches Sources',
               description:
-                'Our RAG engine scans hundreds of medical journals, ADA guidelines, and clinical databases in milliseconds.',
+                'The RAG engine retrieves relevant passages from medical journals, ADA guidelines, and clinical databases to ground its response.',
             },
             {
               icon: CheckCircle,
-              title: 'Get Cited Answers',
+              title: 'Get a Cited Answer',
               description:
-                'Receive clear responses with source links so you can verify and deepen your understanding.',
+                'You receive a clear, AI-generated response with source references so you can verify the information independently.',
             },
           ].map(({ icon: Icon, title, description }, i) => (
             <div key={title} className="relative flex flex-col items-center gap-4 text-center">
-              <div className="relative animate-pulse-ring">
+              <div className="relative">
                 <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full gradient-hero shadow-lg">
                   <Icon size={28} weight="bold" className="text-white" />
                 </div>
@@ -469,8 +499,8 @@ function Footer() {
               </span>
             </a>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              AI-powered diabetes health assistant. Get evidence-based answers to all your diabetes
-              questions, instantly and securely.
+              An AI assistant that answers diabetes questions using evidence from medical literature
+              and clinical guidelines. For informational use only.
             </p>
             <div className="flex items-center gap-3">
               <a
@@ -495,7 +525,7 @@ function Footer() {
               Product
             </p>
             <ul className="space-y-2.5 text-sm">
-              {['Features', 'How It Works', 'Pricing', 'Changelog'].map(item => (
+              {['Features', 'How It Works'].map(item => (
                 <li key={item}>
                   <a
                     href="#"
@@ -551,10 +581,11 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* <DisclaimerBanner /> */}
       <Navbar theme={theme} onToggle={toggle} />
       <main>
         <HeroSection />
-        <StatsSection />
+        <WhatItIsSection />
         <FeaturesSection />
         <HowItWorksSection />
       </main>
