@@ -7,7 +7,7 @@ export const trpc = createTRPCReact<AppRouter>()
 const env = import.meta.env as unknown as Record<string, string | undefined>
 const project = env.VITE_FIREBASE_PROJECT_ID ?? 'health-lifeline-53fb3'
 const region = env.VITE_FIREBASE_REGION ?? 'europe-west2'
-const port = env.VITE_FUNCTIONS_PORT ?? '5001'
+const port = env.VITE_FUNCTIONS_PORT ?? '5002'
 const defaultUrl = `http://127.0.0.1:${port}/${project}/${region}/api`
 
 export const trpcClient = trpc.createClient({

@@ -217,6 +217,28 @@ function NoConversations() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Skeleton loader for conversation list
+// ─────────────────────────────────────────────────────────────────
+
+function ConversationSkeleton() {
+  return (
+    <div className="flex flex-col gap-1 px-2">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-1.5 rounded-md px-2.5 py-2.5">
+          {/* Title line */}
+          <div
+            className="h-2.5 rounded-full animate-skeleton"
+            style={{ width: `${60 + (i % 3) * 15}%` }}
+          />
+          {/* Timestamp line */}
+          <div className="h-1.5 w-12 rounded-full animate-skeleton opacity-60" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Sidebar
 // ─────────────────────────────────────────────────────────────────
 
@@ -226,6 +248,7 @@ export interface SidebarProps {
   theme: string
   onToggleTheme: () => void
   conversations: Conversation[]
+  isLoadingConversations?: boolean
   activeConvId: string | null
   onSelectConv: (id: string) => void
   onNewChat: () => void
@@ -242,6 +265,7 @@ export function Sidebar({
   theme,
   onToggleTheme,
   conversations,
+  isLoadingConversations = false,
   activeConvId,
   onSelectConv,
   onNewChat,
@@ -342,7 +366,9 @@ export function Sidebar({
 
         {/* ── Conversation list ── */}
         <div className="flex-1 overflow-y-auto px-2 pb-2">
-          {filtered.length > 0 ? (
+          {isLoadingConversations ? (
+            <ConversationSkeleton />
+          ) : filtered.length > 0 ? (
             <>
               <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Recent
