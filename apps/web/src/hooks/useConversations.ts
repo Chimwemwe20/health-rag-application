@@ -6,15 +6,25 @@ import type { Conversation } from '../types/chat'
 /**
  * Real-time subscription to the current user's active conversations,
  * ordered by most recently updated first.
+ *
+ * Returns `{ conversations, isLoading }` — `isLoading` is true until
+ * the first snapshot arrives so the UI can show skeleton placeholders.
  */
-export function useConversations(uid: string | null) {
+export function useConversations(uid: string | null): {
+  conversations: Conversation[]
+  isLoading: boolean
+} {
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!uid) {
       setConversations([])
+      setIsLoading(false)
       return
     }
+
+    setIsLoading(true)
 
     const q = query(
       collection(db, 'conversations'),
@@ -36,10 +46,11 @@ export function useConversations(uid: string | null) {
         }
       })
       setConversations(convs)
+      setIsLoading(false)
     })
 
     return unsubscribe
   }, [uid])
 
-  return conversations
+  return { conversations, isLoading }
 }
