@@ -12,6 +12,9 @@ import { getDb } from '../../lib/firebase.js'
 const PROJECT = process.env.GOOGLE_CLOUD_PROJECT ?? 'health-lifeline-53fb3'
 const LOCATION = process.env.GOOGLE_CLOUD_LOCATION ?? 'europe-west2'
 const CORPUS_ID = process.env.RAG_CORPUS_ID ?? '7631349568579305472'
+const DIABETES_DOMAINS =
+  process.env.DIABETES_DOMAINS ??
+  'diabetes.org,niddk.nih.gov,cdc.gov/diabetes,idf.org,nhs.uk/conditions/diabetes'
 
 const RAG_CORPUS_RESOURCE = `projects/${PROJECT}/locations/${LOCATION}/ragCorpora/${CORPUS_ID}`
 
@@ -172,6 +175,13 @@ export const chatRouter = router({
           }
         }
 
+        const domainList = DIABETES_DOMAINS.split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+        const extraLinks = domainList.map(
+          d => `https://www.google.com/search?q=${encodeURIComponent(`site:${d} ${input.message}`)}`
+        )
+
         // ── 5. Persist the assistant message ───────────────────────
         await db.collection('conversations').doc(convId).collection('messages').doc().set({
           uid: input.uid,
@@ -180,6 +190,7 @@ export const chatRouter = router({
           content: answerText,
           version: 'v1',
           citations: sources,
+          extraLinks,
           createdAt: FieldValue.serverTimestamp(),
           deletedAt: null,
         })

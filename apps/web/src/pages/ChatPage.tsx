@@ -326,6 +326,22 @@ function MessageBubble({
             ))}
           </div>
         )}
+        {!isUser && message.extraLinks && message.extraLinks.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {message.extraLinks.map(link => (
+              <a
+                key={link}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-muted/80 transition-colors"
+              >
+                <Link size={9} />
+                <span className="truncate max-w-[220px]">{link}</span>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

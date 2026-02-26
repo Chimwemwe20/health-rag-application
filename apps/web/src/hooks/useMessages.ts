@@ -45,6 +45,7 @@ export function useMessages(
           role: d.role as 'user' | 'assistant',
           text: d.content as string,
           sources: (d.citations as string[] | undefined) ?? [],
+          extraLinks: (d.extraLinks as string[] | undefined) ?? undefined,
         }
       })
       setMessages(msgs)

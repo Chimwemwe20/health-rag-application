@@ -14,4 +14,5 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   text: string
   sources?: string[]
+  extraLinks?: string[]
 }
