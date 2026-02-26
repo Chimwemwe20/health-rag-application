@@ -21,6 +21,7 @@ const RAG_CORPUS_RESOURCE = `projects/${PROJECT}/locations/${LOCATION}/ragCorpor
 // ─────────────────────────────────────────────────────────────────
 
 let _model: ReturnType<VertexAI['getGenerativeModel']> | null = null
+const HISTORY_MAX_MESSAGES = 12
 
 function getModel() {
   if (!_model) {
@@ -111,15 +112,38 @@ export const chatRouter = router({
           deletedAt: null,
         })
 
-        // ── 3. Call Vertex AI ──────────────────────────────────────
+        // ── 3. Build conversation history for context ──────────────
+        const historySnap = await db
+          .collection('conversations')
+          .doc(convId)
+          .collection('messages')
+          .where('uid', '==', input.uid)
+          .where('deletedAt', '==', null)
+          .orderBy('createdAt', 'desc')
+          .limit(HISTORY_MAX_MESSAGES)
+          .get()
+
+        const historyDocs = historySnap.docs.reverse()
+        const contents =
+          historyDocs.length > 0
+            ? [
+                ...historyDocs.map(d => {
+                  const data = d.data() as {
+                    role?: string
+                    content?: string
+                  }
+                  const role = data.role === 'assistant' ? 'model' : 'user'
+                  const text = data.content ?? ''
+                  return { role, parts: [{ text }] }
+                }),
+                { role: 'user', parts: [{ text: input.message }] },
+              ]
+            : [{ role: 'user', parts: [{ text: input.message }] }]
+
+        // ── 4. Call Vertex AI ──────────────────────────────────────
         const result = await getModel().generateContent({
           tools: [ragTool],
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: input.message }],
-            },
-          ],
+          contents,
         })
 
         const response = result.response
@@ -148,7 +172,7 @@ export const chatRouter = router({
           }
         }
 
-        // ── 4. Persist the assistant message ───────────────────────
+        // ── 5. Persist the assistant message ───────────────────────
         await db.collection('conversations').doc(convId).collection('messages').doc().set({
           uid: input.uid,
           conversationId: convId,
@@ -160,7 +184,7 @@ export const chatRouter = router({
           deletedAt: null,
         })
 
-        // ── 5. Bump conversation updatedAt ─────────────────────────
+        // ── 6. Bump conversation updatedAt ─────────────────────────
         await db.collection('conversations').doc(convId).update({
           updatedAt: FieldValue.serverTimestamp(),
         })

@@ -87,7 +87,6 @@ function Router() {
           </ProtectedRoute>
         }
       />
-
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

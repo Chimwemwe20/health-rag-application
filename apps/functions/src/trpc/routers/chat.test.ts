@@ -28,16 +28,36 @@ vi.mock('firebase-admin/firestore', () => ({
 }))
 vi.mock('../../lib/firebase.js', () => ({
   getDb: vi.fn().mockReturnValue({
-    collection: vi.fn().mockReturnValue({
-      doc: vi.fn().mockReturnValue({
-        set: hoisted.mockSet,
-        update: hoisted.mockUpdate,
-        collection: vi.fn().mockReturnValue({
+    collection: vi.fn().mockImplementation((name: string) => {
+      if (name === 'conversations') {
+        const messagesCollection = {
           doc: vi.fn().mockReturnValue({
             set: hoisted.mockSet,
           }),
+          where: vi.fn().mockReturnThis(),
+          orderBy: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          get: vi.fn().mockResolvedValue({ docs: [] }),
+        }
+        return {
+          doc: vi.fn().mockReturnValue({
+            set: hoisted.mockSet,
+            update: hoisted.mockUpdate,
+            collection: vi.fn().mockImplementation((sub: string) => {
+              if (sub === 'messages') return messagesCollection
+              return {
+                doc: vi.fn().mockReturnValue({ set: hoisted.mockSet }),
+              }
+            }),
+          }),
+        }
+      }
+      // Default mock for other collections
+      return {
+        doc: vi.fn().mockReturnValue({
+          set: hoisted.mockSet,
         }),
-      }),
+      }
     }),
   }),
 }))
