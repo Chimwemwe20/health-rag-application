@@ -62,6 +62,8 @@ const ragTool: Tool = {
   },
 }
 
+const webTool = { googleSearch: {} } as unknown as Tool
+
 // ─────────────────────────────────────────────────────────────────
 // I/O schemas
 // ─────────────────────────────────────────────────────────────────
@@ -145,7 +147,7 @@ export const chatRouter = router({
 
         // ── 4. Call Vertex AI ──────────────────────────────────────
         const result = await getModel().generateContent({
-          tools: [ragTool],
+          tools: [ragTool, webTool],
           contents,
         })
 
