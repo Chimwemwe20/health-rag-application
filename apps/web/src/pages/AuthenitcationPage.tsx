@@ -36,7 +36,7 @@ type AuthMode = 'signin' | 'signup'
 
 function BrandPanel() {
   return (
-    <div className="relative hidden lg:flex lg:w-[44%] flex-col justify-between gradient-hero p-12 text-white overflow-hidden">
+    <div className="relative hidden lg:flex lg:w-[44%] lg:min-h-screen lg:sticky lg:top-0 lg:self-start flex-col justify-between gradient-hero p-12 text-white overflow-hidden">
       {/* Decorative blobs */}
       <div
         aria-hidden
@@ -439,7 +439,7 @@ export function AuthenitcationPage() {
   const handleBackToLanding = () => navigate('/')
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="flex bg-background">
       <BrandPanel />
 
       {/* Right: form panel */}
