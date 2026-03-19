@@ -82,55 +82,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       # ======================================================================
-      # Deploy to Firebase
-      # Authenticates using FIREBASE_TOKEN — no GCP IAM setup needed.
-      # NODE_ENV=development is inherited from the job env so the firebase.json
-      # predeploy scripts (pnpm --filter shared build, pnpm --filter functions
-      # build, predeploy.mjs) run correctly.
+      # Deploy — mirrors a local `firebase deploy`.
+      # firebase.json predeploy hooks build shared, functions, and web.
+      # VITE vars must be present here so the hosting predeploy hook
+      # (pnpm --filter web build) bakes the correct config into the bundle.
       # ======================================================================
-      - name: Deploy Firestore rules and indexes
+      - name: Deploy
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-        run: |
-          firebase deploy --only firestore \
-            --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" \
-            --non-interactive
-
-      - name: Deploy Firebase Functions
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-        run: |
-          firebase deploy --only functions \
-            --project "$FIREBASE_PROJECT_ID" \
-            --token "$FIREBASE_TOKEN" \
-            --non-interactive
-
-      - name: Deploy to Firebase Hosting
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          # VITE vars are required here because firebase.json has a predeploy
-          # hook ("pnpm --filter web build") that rebuilds the web app.
-          # Without these, the predeploy rebuild bakes in `undefined` for all
-          # VITE_FIREBASE_* values, causing auth/invalid-api-key in production.
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -139,7 +103,7 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
-          firebase deploy --only hosting \
+          firebase deploy \
             --project "$FIREBASE_PROJECT_ID" \
             --token "$FIREBASE_TOKEN" \
             --non-interactive
